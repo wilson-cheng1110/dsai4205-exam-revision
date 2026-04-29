@@ -1,0 +1,12 @@
+# Large sample data archives
+*.zip
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db

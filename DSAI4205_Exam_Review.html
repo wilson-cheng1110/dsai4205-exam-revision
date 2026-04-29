@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSAI4205 Exam Review</title>
+<style>
+  :root {
+    --accent: #2563eb;
+    --accent2: #7c3aed;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --muted: #64748b;
+    --warn: #f59e0b;
+    --success: #10b981;
+    --danger: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text);
+    line-height: 1.65; font-size: 15px;
+  }
+  .cover {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #7c3aed 100%);
+    color: white; padding: 60px 40px; text-align: center;
+  }
+  .cover h1 { font-size: 2.6em; font-weight: 800; letter-spacing: -0.5px; }
+  .cover p { opacity: 0.85; font-size: 1.1em; margin-top: 10px; }
+  .cover .meta { margin-top: 20px; display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+  .cover .badge {
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px; padding: 6px 16px; font-size: 0.9em;
+  }
+  nav {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 14px 40px; position: sticky; top: 0; z-index: 100;
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  nav a {
+    color: var(--accent); text-decoration: none; font-size: 0.82em; font-weight: 600;
+    padding: 4px 10px; border-radius: 6px; border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  nav a:hover { background: #eff6ff; border-color: var(--accent); }
+  pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 14px 18px; margin: 10px 0; font-size: 0.82em; overflow-x: auto; border-left: 4px solid #7c3aed; font-family: 'Courier New', monospace; white-space: pre; }
+  .container { max-width: 980px; margin: 0 auto; padding: 30px 24px; }
+  .section {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 28px; overflow: hidden;
+  }
+  .section-header {
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+    color: white; padding: 14px 22px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-header .num {
+    background: rgba(255,255,255,0.25); border-radius: 50%; width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.9em;
+  }
+  .section-header h2 { font-size: 1.1em; font-weight: 700; }
+  .section-body { padding: 20px 22px; }
+  h3 { color: var(--accent); font-size: 1em; font-weight: 700; margin: 18px 0 8px; border-left: 3px solid var(--accent); padding-left: 10px; }
+  h4 { color: var(--accent2); font-size: 0.92em; font-weight: 700; margin: 14px 0 6px; }
+  p, li { margin-bottom: 6px; }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.88em; }
+  th { background: #eff6ff; color: var(--accent); font-weight: 700; padding: 9px 12px; text-align: left; border: 1px solid var(--border); }
+  td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .formula {
+    background: #1e293b; color: #e2e8f0; font-family: 'Courier New', monospace;
+    border-radius: 8px; padding: 14px 18px; margin: 10px 0; font-size: 0.9em;
+    overflow-x: auto; border-left: 4px solid var(--accent);
+  }
+  .callout {
+    border-radius: 8px; padding: 12px 16px; margin: 12px 0;
+    border-left: 4px solid; font-size: 0.9em;
+  }
+  .callout.warning { background: #fffbeb; border-color: var(--warn); color: #92400e; }
+  .callout.info { background: #eff6ff; border-color: var(--accent); color: #1e40af; }
+  .callout.tip { background: #ecfdf5; border-color: var(--success); color: #065f46; }
+  .callout.danger { background: #fef2f2; border-color: var(--danger); color: #991b1b; }
+  .callout strong { font-weight: 700; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
+  }
+  .card h4 { margin-top: 0; color: var(--accent2); }
+  .tag {
+    display: inline-block; font-size: 0.75em; font-weight: 700; padding: 2px 8px;
+    border-radius: 10px; margin: 2px;
+  }
+  .tag.blue { background: #dbeafe; color: #1d4ed8; }
+  .tag.purple { background: #ede9fe; color: #6d28d9; }
+  .tag.green { background: #d1fae5; color: #065f46; }
+  .tag.orange { background: #fed7aa; color: #c2410c; }
+  .tag.red { background: #fee2e2; color: #b91c1c; }
+  code { background: #f1f5f9; border-radius: 4px; padding: 2px 6px; font-size: 0.88em; font-family: 'Courier New', monospace; }
+  .step { display: flex; gap: 12px; margin: 8px 0; }
+  .step .step-num {
+    background: var(--accent); color: white; border-radius: 50%;
+    width: 24px; height: 24px; min-width: 24px; display: flex; align-items: center;
+    justify-content: center; font-size: 0.8em; font-weight: 700; margin-top: 2px;
+  }
+  .toc { columns: 2; gap: 20px; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.92em; display: block; padding: 3px 0; border-bottom: 1px dotted var(--border); }
+  .toc a:hover { color: var(--accent); }
+  @media print {
+    nav, .cover .meta { display: none; }
+    body { font-size: 13px; }
+    .section { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>DSAI4205 Exam Review</h1>
+  <p>Big Data Analytics — Complete Revision Notes</p>
+  <div class="meta">
+    <span class="badge">PolyU · Dr. Ken Fong</span>
+    <span class="badge">Lectures 1–10</span>
+    <span class="badge">Exam = 40% of Grade</span>
+    <span class="badge">Format: MCQ + Long Questions</span>
+  </div>
+</div>
+
+<nav>
+  <a href="#l1">L1 Intro</a>
+  <a href="#l2">L2 Parallelism</a>
+  <a href="#l3">L3 Spark</a>
+  <a href="#l4">L4 SparkSQL</a>
+  <a href="#l5">L5 NLP</a>
+  <a href="#l6">L6 LLM</a>
+  <a href="#l7">L7 PageRank</a>
+  <a href="#l8">L8 Graph</a>
+  <a href="#l9">L9 NoSQL</a>
+  <a href="#l10">L10 RecSys</a>
+  <a href="#code">Code Reference</a>
+  <a href="#summary">Quick Summary</a>
+</nav>
+
+<div class="container">
+
+<!-- ============================================================ L1 ============================================================ -->
+<div class="section" id="l1">
+  <div class="section-header">
+    <div class="num">1</div>
+    <h2>Introduction to Big Data Analytics</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>The 6 V's of Big Data</h3>
+    <table>
+      <tr><th>V</th><th>Definition</th><th>Example</th></tr>
+      <tr><td><strong>Volume</strong></td><td>Amount of data — growing exponentially</td><td>6.4B smartphone subscriptions (2022); IoT sensors</td></tr>
+      <tr><td><strong>Velocity</strong></td><td>Speed at which data is generated AND processed</td><td>16.4B Google searches/day; real-time stock ticks</td></tr>
+      <tr><td><strong>Variety</strong></td><td>Diversity of data types (structured, semi-structured, unstructured)</td><td>Text, video, sensor logs, JSON, CSV simultaneously</td></tr>
+      <tr><td><strong>Veracity</strong></td><td>Quality, accuracy, and trustworthiness of data</td><td>Measurement errors, human errors, inconsistent sources</td></tr>
+      <tr><td><strong>Value</strong></td><td>Usefulness / business worth of the data</td><td>Not all collected data has real business value; longer processing = less value</td></tr>
+      <tr><td><strong>Variability</strong></td><td>How fast and how much data changes over time</td><td>Netflix user preferences shift when new releases drop; words have multiple meanings</td></tr>
+    </table>
+
+    <h3>Why Traditional Tools Fail</h3>
+    <ul>
+      <li>Single machine cannot store or process petabyte-scale datasets.</li>
+      <li>Relational DBs assume structured, schema-on-write data.</li>
+      <li>Batch pipelines cannot meet real-time velocity requirements.</li>
+      <li>No built-in fault tolerance for node failures at scale.</li>
+    </ul>
+
+    <h3>Types of Analytics</h3>
+    <table>
+      <tr><th>Type</th><th>Question answered</th><th>Example</th></tr>
+      <tr><td>Descriptive</td><td>What happened?</td><td>Sales report last quarter</td></tr>
+      <tr><td>Diagnostic</td><td>Why did it happen?</td><td>Root-cause analysis of churn</td></tr>
+      <tr><td>Predictive</td><td>What will happen?</td><td>Demand forecasting</td></tr>
+      <tr><td>Prescriptive</td><td>What should we do?</td><td>Route optimization recommendation</td></tr>
+    </table>
+
+    <div class="callout tip"><strong>Exam tip:</strong> Netflix case study uses all 4 Vs (Volume, Velocity, Variety, Veracity). Be ready to map each V to a specific challenge and solution.</div>
+  </div>
+</div>
+
+<!-- ============================================================ L2 ============================================================ -->
+<div class="section" id="l2">
+  <div class="section-header">
+    <div class="num">2</div>
+    <h2>The Path to Parallelism</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>MapReduce</h3>
+    <p>A programming model for processing large datasets in parallel across a cluster.</p>
+    <div class="step"><div class="step-num">1</div><div><strong>Input:</strong> A bag of (key, value) pairs.</div></div>
+    <div class="step"><div class="step-num">2</div><div><strong>Map:</strong> Each worker processes its chunk and emits intermediate (key, value) pairs.</div></div>
+    <div class="step"><div class="step-num">3</div><div><strong>Shuffle:</strong> All intermediate values with the same key are grouped together and sent to the same reducer.</div></div>
+    <div class="step"><div class="step-num">4</div><div><strong>Reduce:</strong> Aggregates the values for each key into a final result.</div></div>
+    <div class="step"><div class="step-num">5</div><div><strong>Output:</strong> Final (key, value) pairs written to storage.</div></div>
+
+    <h4>Word Count Example (classic MapReduce)</h4>
+    <div class="formula">Map:    (doc_id, "hello world hello") → [("hello",1), ("world",1), ("hello",1)]
+Shuffle: ("hello", [1,1]), ("world", [1])
+Reduce: ("hello", 2), ("world", 1)</div>
+
+    <h3>HDFS (Hadoop Distributed File System)</h3>
+    <ul>
+      <li><strong>Write-once, read-many</strong> model — files are immutable once written.</li>
+      <li><strong>Fixed-size block partitioning</strong> — large files split into blocks (default 128 MB).</li>
+      <li><strong>3-way replication</strong> — each block replicated on 3 separate nodes for fault tolerance.</li>
+      <li><strong>NameNode</strong>: master — stores metadata (file names, block locations).</li>
+      <li><strong>DataNode</strong>: worker — stores actual data blocks.</li>
+    </ul>
+
+    <h3>Limitations of MapReduce / Why Spark?</h3>
+    <table>
+      <tr><th>MapReduce</th><th>Spark</th></tr>
+      <tr><td>Writes intermediate results to disk (slow)</td><td>Keeps data in memory (10–100× faster for iterative)</td></tr>
+      <tr><td>Only Map + Reduce primitives</td><td>Rich transformation library (100+ ops)</td></tr>
+      <tr><td>No support for iterative algorithms</td><td>Efficient for ML, graph, streaming</td></tr>
+      <tr><td>Java-heavy API</td><td>Python, Scala, Java, R APIs</td></tr>
+    </table>
+
+    <h3>Dask</h3>
+    <ul>
+      <li>Python-native parallel computing — extends NumPy/Pandas to datasets larger than RAM.</li>
+      <li><strong>Lazy evaluation</strong>: builds a task graph, executes only on <code>.compute()</code>.</li>
+      <li><strong>Block algorithms</strong>: splits computation into chunks (~100 MB – 1 GB recommended).</li>
+      <li>Rechunking is expensive — choose chunk size wisely upfront.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ L3 ============================================================ -->
+<div class="section" id="l3">
+  <div class="section-header">
+    <div class="num">3</div>
+    <h2>Apache Spark</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>Core Concepts</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>RDD (Resilient Distributed Dataset)</h4>
+        <ul>
+          <li>Fundamental data structure in Spark</li>
+          <li><strong>Immutable</strong> — create new RDD instead of modifying</li>
+          <li><strong>Distributed</strong> — partitioned across cluster nodes</li>
+          <li><strong>Fault-tolerant</strong> via data lineage (re-compute lost partitions)</li>
+          <li><strong>Lazy evaluation</strong> — transformations not executed until an action is called</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>DataFrame</h4>
+        <ul>
+          <li>Organized into named columns (like a table)</li>
+          <li>Supports nested types: <code>StructType</code>, <code>ArrayType</code>, <code>MapType</code></li>
+          <li>Optimized by <strong>Catalyst optimizer</strong></li>
+          <li>DSL similar to Pandas</li>
+          <li>Also lazy — needs an action to execute</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Transformations vs Actions</h3>
+    <table>
+      <tr><th>Category</th><th>Description</th><th>Examples</th></tr>
+      <tr>
+        <td><span class="tag blue">Transformation</span></td>
+        <td>Lazy — returns a new RDD/DF; no computation yet</td>
+        <td><code>map()</code>, <code>filter()</code>, <code>flatMap()</code>, <code>join()</code>, <code>union()</code>, <code>reduceByKey()</code>, <code>groupByKey()</code>, <code>distinct()</code>, <code>sortBy()</code></td>
+      </tr>
+      <tr>
+        <td><span class="tag orange">Action</span></td>
+        <td>Eager — triggers computation, returns a value or writes data</td>
+        <td><code>collect()</code>, <code>count()</code>, <code>show()</code>, <code>save()</code>, <code>first()</code>, <code>take(n)</code></td>
+      </tr>
+    </table>
+
+    <h3>Narrow vs Wide Transformations</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>Narrow</h4>
+        <ul>
+          <li>Each input partition → exactly one output partition</li>
+          <li>No network shuffle needed</li>
+          <li>Examples: <code>filter</code>, <code>map</code>, <code>flatMap</code></li>
+          <li>Faster, can pipeline stages</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Wide (Shuffle)</h4>
+        <ul>
+          <li>Multiple input partitions → output partitions</li>
+          <li>Requires <strong>network communication</strong> (shuffle)</li>
+          <li>Examples: <code>groupByKey</code>, <code>sortBy</code>, <code>join</code></li>
+          <li>Expensive — stage boundary in DAG</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Key DataFrame Operations</h3>
+    <table>
+      <tr><th>Operation</th><th>Purpose</th><th>SQL equivalent</th></tr>
+      <tr><td><code>select()</code></td><td>Project columns</td><td>SELECT col</td></tr>
+      <tr><td><code>filter() / where()</code></td><td>Filter rows by condition</td><td>WHERE</td></tr>
+      <tr><td><code>groupBy()</code></td><td>Group rows by key</td><td>GROUP BY</td></tr>
+      <tr><td><code>agg()</code></td><td>Aggregate (sum, avg, count…)</td><td>SUM(), AVG()</td></tr>
+      <tr><td><code>join()</code></td><td>Combine two DataFrames</td><td>JOIN</td></tr>
+      <tr><td><code>orderBy() / sort()</code></td><td>Sort rows</td><td>ORDER BY</td></tr>
+      <tr><td><code>withColumn()</code></td><td>Add or replace a column</td><td>AS (computed col)</td></tr>
+      <tr><td><code>drop()</code></td><td>Remove columns</td><td>—</td></tr>
+    </table>
+
+    <h3>Extended RDD Operations</h3>
+    <table>
+      <tr><th>Operation</th><th>Type</th><th>Description</th><th>Example result</th></tr>
+      <tr><td><code>map(f)</code></td><td>Transform</td><td>Apply f to every element</td><td>[1,2,3] → [2,3,4]</td></tr>
+      <tr><td><code>flatMap(f)</code></td><td>Transform</td><td>Like map but flattens output lists</td><td>["a b","c"] → ["a","b","c"]</td></tr>
+      <tr><td><code>filter(f)</code></td><td>Transform</td><td>Keep elements where f returns True</td><td>[1,2,3] → [3] (f: x&gt;2)</td></tr>
+      <tr><td><code>distinct()</code></td><td>Transform</td><td>Remove duplicates</td><td>[1,1,2] → [1,2]</td></tr>
+      <tr><td><code>union(rdd2)</code></td><td>Transform</td><td>Combine all elements (keeps dupes)</td><td>[1,2]∪[3,4] → [1,2,3,4]</td></tr>
+      <tr><td><code>intersection(rdd2)</code></td><td>Transform</td><td>Only shared elements</td><td>[1,2,3]∩[3,4] → [3]</td></tr>
+      <tr><td><code>subtract(rdd2)</code></td><td>Transform</td><td>Elements in self not in other</td><td>[1,2,3]−[3] → [1,2]</td></tr>
+      <tr><td><code>cartesian(rdd2)</code></td><td>Transform</td><td>All pairs (A×B)</td><td>[1,2]×[3,4] → [(1,3),(1,4),(2,3),(2,4)]</td></tr>
+      <tr><td><code>groupBy(f)</code></td><td>Transform</td><td>Group by key function result</td><td>[1,2,3] by x%2 → {0:[2], 1:[1,3]}</td></tr>
+      <tr><td><code>reduceByKey(f)</code></td><td>Transform</td><td>Aggregate values with same key</td><td>[(a,1),(a,2)] → [(a,3)]</td></tr>
+      <tr><td><code>mapValues(f)</code></td><td>Transform</td><td>Apply f to values only (key unchanged)</td><td>[(a,2)] → [(a,4)] with f=x²</td></tr>
+      <tr><td><code>sortBy(f)</code></td><td>Transform</td><td>Sort by key function</td><td>sort by value descending</td></tr>
+      <tr><td><code>randomSplit([w1,w2])</code></td><td>Transform</td><td>Split RDD by weights</td><td>[0.8, 0.2] → train/test</td></tr>
+      <tr><td><code>collect()</code></td><td>Action</td><td>Return all elements as Python list</td><td>triggers computation</td></tr>
+      <tr><td><code>count()</code></td><td>Action</td><td>Number of elements</td><td>3</td></tr>
+      <tr><td><code>first()</code></td><td>Action</td><td>First element</td><td>21</td></tr>
+      <tr><td><code>take(n)</code></td><td>Action</td><td>First n elements</td><td>[21, 1]</td></tr>
+      <tr><td><code>takeOrdered(n)</code></td><td>Action</td><td>Smallest n elements (or custom key)</td><td>[1,2,3,4,5,6]</td></tr>
+      <tr><td><code>min()/max()/sum()/mean()/stdev()</code></td><td>Action</td><td>Basic statistics</td><td>—</td></tr>
+    </table>
+
+    <h3>Key-Value RDD Joins</h3>
+    <table>
+      <tr><th>Join type</th><th>Behaviour</th><th>Example</th></tr>
+      <tr><td><code>join()</code></td><td>Inner — only keys in both</td><td>[(1,a),(3,b)] join [(3,c)] → [(3,(b,c))]</td></tr>
+      <tr><td><code>leftOuterJoin()</code></td><td>All keys from left; None for missing right values</td><td>→ [(1,(a,None)),(3,(b,c))]</td></tr>
+      <tr><td><code>rightOuterJoin()</code></td><td>All keys from right</td><td>→ [(3,(b,c))]</td></tr>
+      <tr><td><code>subtractByKey()</code></td><td>Keys in left NOT in right</td><td>→ [(1,a)]</td></tr>
+    </table>
+
+    <h3>SparkSession Setup</h3>
+    <pre>from pyspark.sql import SparkSession
+
+ss = SparkSession.builder \
+        .master("local[1]")   # local[x]: x = number of CPU threads
+        .appName("MyApp") \
+        .getOrCreate()
+
+spark = ss.sparkContext  # SparkContext — used for RDD operations</pre>
+
+    <h3>Catalyst Optimizer (DataFrame query engine)</h3>
+    <ul>
+      <li>DataFrame operations build an <strong>Abstract Syntax Tree (AST)</strong> of the logical plan.</li>
+      <li>Catalyst rewrites and optimises the plan before execution (predicate pushdown, column pruning, join reordering).</li>
+      <li>This is why DataFrames are faster than raw RDDs for structured data.</li>
+    </ul>
+    <div class="formula">employees.join(dept, employees.deptId == dept.id)
+         .where(employees.age > 30)
+         .groupBy("deptName")
+         .agg(count("*"))
+# Catalyst pushes the .where() filter BEFORE the join — reads less data</div>
+
+    <h3>Nested Data Structures in DataFrames</h3>
+    <table>
+      <tr><th>Type</th><th>Description</th><th>Example</th></tr>
+      <tr><td><code>StructType</code></td><td>Named fields (like a sub-record)</td><td>address: {city: "HK", zip: "000"}</td></tr>
+      <tr><td><code>ArrayType</code></td><td>List of values</td><td>tags: ["big", "data"]</td></tr>
+      <tr><td><code>MapType</code></td><td>Key-value map</td><td>attributes: {height: 170, weight: 65}</td></tr>
+    </table>
+
+    <h3>Partitioning &amp; Join Optimisation</h3>
+    <ul>
+      <li><code>partitionBy(key)</code> — partition RDD so all records with the same key land on the same node.</li>
+      <li>If two RDDs are partitioned by the same key, <code>join()</code> becomes a <strong>narrow transformation</strong> (no shuffle).</li>
+      <li>Mismatched partitioning → all-to-all network communication (expensive wide transformation).</li>
+      <li>Use <code>HashPartitioner</code> for key-based partitioning; <code>RangePartitioner</code> for sorted ranges.</li>
+    </ul>
+
+    <h3>Inverted Index (Take-Home Exercise)</h3>
+    <p>Classic IR structure: word → list of document IDs that contain it.</p>
+    <pre># Input format: "D1 || word1 word2 word3 ..."
+lines = spark.textFile("documents.txt")
+
+inv_index = lines \
+    .flatMap(lambda line: [
+        (word, line.split("||")[0].strip())
+        for word in line.split("||")[1].strip().split()
+    ]) \
+    .distinct() \
+    .groupByKey() \
+    .mapValues(lambda docs: sorted(list(docs))) \
+    .sortByKey()
+
+inv_index.collect()
+# [('data', ['D1','D2']), ('science', ['D1','D3']), ...]</pre>
+
+    <div class="callout info"><strong>Partitioning tip:</strong> Use <code>repartition()</code> when you need to increase partitions (shuffle). Use <code>coalesce()</code> to reduce partitions without shuffle. Always partition by join keys to avoid cross-node shuffles.</div>
+  </div>
+</div>
+
+<!-- ============================================================ L4 ============================================================ -->
+<div class="section" id="l4">
+  <div class="section-header">
+    <div class="num">4</div>
+    <h2>Hive, Shark &amp; SparkSQL</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>SparkSQL</h3>
+    <ul>
+      <li>Allows SQL queries directly on DataFrames and files.</li>
+      <li>Integrates with Hive metastore for table management.</li>
+      <li>Reads JSON, Parquet, ORC, CSV, Avro natively.</li>
+      <li>Catalyst optimizer rewrites query plans for maximum efficiency.</li>
+    </ul>
+
+    <h3>Data Formats</h3>
+    <table>
+      <tr><th>Format</th><th>Type</th><th>Key feature</th></tr>
+      <tr><td>CSV</td><td>Row-based, text</td><td>Human-readable; slow for analytics</td></tr>
+      <tr><td>JSON</td><td>Semi-structured</td><td>Flexible schema; verbose</td></tr>
+      <tr><td>Parquet</td><td>Columnar, binary</td><td>Best for analytics — column pruning, compression</td></tr>
+      <tr><td>ORC</td><td>Columnar, binary</td><td>Optimized for Hive; great compression</td></tr>
+      <tr><td>Avro</td><td>Row-based, binary</td><td>Good for streaming / schema evolution</td></tr>
+    </table>
+
+    <h3>Hive vs SparkSQL</h3>
+    <table>
+      <tr><th></th><th>Hive</th><th>SparkSQL</th></tr>
+      <tr><td>Execution engine</td><td>MapReduce (slow)</td><td>Spark in-memory (fast)</td></tr>
+      <tr><td>Latency</td><td>High (minutes)</td><td>Low (seconds)</td></tr>
+      <tr><td>Iterative queries</td><td>Poor</td><td>Excellent</td></tr>
+      <tr><td>Use case</td><td>Batch ETL</td><td>Interactive + batch analytics</td></tr>
+    </table>
+
+    <h3>Data Lake vs Data Warehouse</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>Data Lake</h4>
+        <ul>
+          <li>Stores raw, unprocessed data in native format</li>
+          <li>Schema-on-read</li>
+          <li>Flexible — all data types welcome</li>
+          <li>Risk of becoming a "data swamp" without governance</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Data Warehouse</h4>
+        <ul>
+          <li>Structured, cleaned, transformed data</li>
+          <li>Schema-on-write</li>
+          <li>Optimized for SQL queries and reporting</li>
+          <li>Slower ingestion, faster query</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ L5 ============================================================ -->
+<div class="section" id="l5">
+  <div class="section-header">
+    <div class="num">5</div>
+    <h2>Intro to Natural Language Processing (NLP)</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>Text Preprocessing Pipeline</h3>
+    <div class="step"><div class="step-num">1</div><div><strong>Data Cleaning:</strong> Remove HTML markup, punctuation, numbers, special characters.</div></div>
+    <div class="step"><div class="step-num">2</div><div><strong>Tokenization:</strong> Split text into tokens (words, subwords, or characters).</div></div>
+    <div class="step"><div class="step-num">3</div><div><strong>Stop Word Removal:</strong> Remove high-frequency, low-information words (a, an, the, it, is…).</div></div>
+    <div class="step"><div class="step-num">4</div><div><strong>Stemming / Lemmatization:</strong> Reduce words to root form.</div></div>
+    <div class="step"><div class="step-num">5</div><div><strong>POS Tagging:</strong> Label each token (noun, verb, adjective…).</div></div>
+    <div class="step"><div class="step-num">6</div><div><strong>Feature Extraction:</strong> Convert text to numerical representation.</div></div>
+
+    <h3>Stemming vs Lemmatization</h3>
+    <table>
+      <tr><th></th><th>Stemming</th><th>Lemmatization</th></tr>
+      <tr><td>Method</td><td>Chop suffixes by rules</td><td>Use dictionary to find root (lemma)</td></tr>
+      <tr><td>Result</td><td>May not be a real word</td><td>Always a valid dictionary word</td></tr>
+      <tr><td>Speed</td><td>Faster</td><td>Slower (needs POS context)</td></tr>
+      <tr><td>Example</td><td>"computational" → "comput"</td><td>"am/are/is" → "be"</td></tr>
+      <tr><td>Algorithm</td><td>Porter Stemmer (5 phases)</td><td>WordNet Lemmatizer</td></tr>
+    </table>
+
+    <h4>Porter's Stemmer — 5 Phases (sequential rules)</h4>
+    <ul>
+      <li>Phase 1: Remove plurals &amp; past tenses (sses→ss, ies→i, s→∅)</li>
+      <li>Phase 2: Remove suffixes (ational→ate, tional→tion)</li>
+      <li>Phase 3: Further suffix removal (icate→ic, alize→al)</li>
+      <li>Phase 4: Remove derivational suffixes (ement, ment, ent, ion→if preceded by s/t)</li>
+      <li>Phase 5: Clean up (remove trailing e)</li>
+    </ul>
+
+    <div class="callout warning"><strong>Stop words problem:</strong> Removing stop words blindly can destroy meaning. Examples: "President <em>of</em> University <em>of</em> Hong Kong" (removing "of" breaks the entity), "Let <em>it</em> <em>be</em>" (song title destroyed), "flights <em>to</em> London" (destination lost). Solution: use <strong>Named Entity Recognition (NER)</strong> to protect important phrases before stop-word removal.</div>
+
+    <h3>Text Feature Representations</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>One-Hot Encoding</h4>
+        <ul>
+          <li>Each word → binary vector of vocabulary size</li>
+          <li>Only the position of that word is 1, rest 0</li>
+          <li>Sparse; no notion of word similarity</li>
+          <li>Example: [Fish, Dog, Cat] → [1,0,0], [0,1,0], [0,0,1]</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Bag of Words (BoW)</h4>
+        <ul>
+          <li>Count occurrences of each word in document</li>
+          <li><strong>Word order is lost</strong></li>
+          <li>Sparse representation</li>
+          <li>Can be weighted by TF-IDF for importance</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Levenshtein (Edit) Distance</h3>
+    <p>Minimum number of single-character edits to transform one string to another.</p>
+    <p><strong>Operations:</strong> Insert, Delete, Substitute (each costs 1)</p>
+    <div class="formula">Recurrence:
+  If s[i] == t[j]:   dp[i][j] = dp[i-1][j-1]          (no cost)
+  Else:              dp[i][j] = 1 + min(
+                         dp[i-1][j],    # delete from s
+                         dp[i][j-1],    # insert into s
+                         dp[i-1][j-1]   # substitute
+                     )</div>
+    <p><strong>Example:</strong> "kitten" → "sitting" = <strong>3 edits</strong> (k→s, e→i, insert g)</p>
+
+    <h3>Byte Pair Encoding (BPE) — Subword Tokenization</h3>
+    <div class="step"><div class="step-num">1</div><div>Start: split all words into individual characters.</div></div>
+    <div class="step"><div class="step-num">2</div><div>Count all adjacent symbol pairs in the corpus.</div></div>
+    <div class="step"><div class="step-num">3</div><div>Merge the most frequent pair into a new symbol; add to vocabulary.</div></div>
+    <div class="step"><div class="step-num">4</div><div>Repeat until desired vocabulary size reached (or no more frequent pairs).</div></div>
+    <p>Handles rare and OOV (out-of-vocabulary) words gracefully. Used in GPT, BERT.</p>
+  </div>
+</div>
+
+<!-- ============================================================ L6 ============================================================ -->
+<div class="section" id="l6">
+  <div class="section-header">
+    <div class="num">6</div>
+    <h2>Large Language Models &amp; Word Embeddings</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>Word Embeddings</h3>
+    <p>Dense, low-dimensional vector representations that <strong>capture semantic similarity</strong>. Words used in similar contexts have similar vectors.</p>
+
+    <h3>Word2Vec — Two Architectures</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>Skip-gram</h4>
+        <ul>
+          <li><strong>Input:</strong> center word</li>
+          <li><strong>Output:</strong> predict context words in window</li>
+          <li>Better for rare words</li>
+          <li>Slower to train</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>CBOW (Continuous Bag of Words)</h4>
+        <ul>
+          <li><strong>Input:</strong> context words (averaged)</li>
+          <li><strong>Output:</strong> predict center word</li>
+          <li>Better for frequent words</li>
+          <li>Faster to train</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Skip-gram: Objective Function</h3>
+    <div class="formula">Maximize:  Σ Σ log P(o | c)
+               t  -m≤j≤m, j≠0
+
+Where:
+  P(o | c) = exp(u_o^T · v_c) / Σ_w exp(u_w^T · v_c)
+
+  v_c  = embedding of center word c  (from input matrix V)
+  u_o  = embedding of context word o (from output matrix U)
+  Denominator = softmax over all vocabulary words</div>
+
+    <h3>Skip-gram with Negative Sampling (SGNS)</h3>
+    <p>Solves the expensive softmax over full vocabulary by framing as binary classification:</p>
+    <div class="formula">y = 1  if (center, context) are real co-occurrences
+y = 0  for k randomly sampled "negative" (noise) pairs
+
+Loss = -[ log σ(u_o^T v_c)  +  Σ_k log σ(-u_k^T v_c) ]
+
+σ(x) = 1 / (1 + e^(-x))   (sigmoid function)</div>
+
+    <div class="callout info"><strong>Key insight:</strong> SGNS turns an expensive multi-class problem (predict which of 50,000 words) into many cheap binary problems (is this pair real or noise?).</div>
+
+    <h3>CBOW — Loss Function &amp; Detail</h3>
+    <div class="formula">CBOW input: average of context word vectors
+  x = (1/2m) Σ v_w   for w in context window of size m
+
+Predicted center word probability:
+  P(c | context) = exp(u_c^T · x) / Σ_w exp(u_w^T · x)
+
+Loss: minimize NLL = -log P(c | context)
+
+Key: context vectors V_o are used as the word embeddings in CBOW
+     (unlike Skip-gram where input vectors v_c are preferred)</div>
+
+    <h3>Skip-gram Assumptions</h3>
+    <ul>
+      <li><strong>Window independence:</strong> each context word is predicted independently given the center word.</li>
+      <li><strong>Position independence:</strong> word order within the window does not matter — same prediction regardless of position.</li>
+    </ul>
+
+    <h3>Neural Network Components (Review)</h3>
+    <table>
+      <tr><th>Concept</th><th>Description</th></tr>
+      <tr><td>Activation function</td><td>Introduces non-linearity (ReLU, sigmoid, tanh)</td></tr>
+      <tr><td>Loss function</td><td>Measures error — minimize via gradient descent (NLL for classification)</td></tr>
+      <tr><td>Backpropagation</td><td>Chain rule to compute gradients of loss w.r.t. each parameter</td></tr>
+      <tr><td>Embedding layer</td><td>Lookup table mapping token index → dense vector</td></tr>
+    </table>
+
+    <h3>From Word2Vec to Transformers (conceptual)</h3>
+    <ul>
+      <li>Word2Vec: static embeddings — one vector per word regardless of context.</li>
+      <li>BERT/GPT: contextual embeddings — same word has different vectors in different sentences.</li>
+      <li>Attention mechanism: allows model to look at all positions simultaneously.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ L7 ============================================================ -->
+<div class="section" id="l7">
+  <div class="section-header">
+    <div class="num">7</div>
+    <h2>Link Analysis — PageRank</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>Core Idea</h3>
+    <p>A page is important if <em>important pages</em> link to it. PageRank distributes "rank" along edges, iterating until convergence.</p>
+
+    <h3>Stochastic Adjacency Matrix M</h3>
+    <div class="formula">M[j][i] = 1 / out_degree(i)   if there is an edge i → j
+M[j][i] = 0                   otherwise
+
+Columns sum to 1 (column-stochastic).
+PageRank vector r satisfies:  r = M · r  (eigenvector of M with eigenvalue 1)</div>
+
+    <h3>Power Iteration</h3>
+    <div class="step"><div class="step-num">1</div><div>Initialize: <code>r = [1/N, 1/N, …, 1/N]</code></div></div>
+    <div class="step"><div class="step-num">2</div><div>Multiply: <code>r_new = M · r</code></div></div>
+    <div class="step"><div class="step-num">3</div><div>Repeat until <code>||r_new − r||₁ &lt; ε</code> (convergence).</div></div>
+    <p>Converges in ~50 iterations for the web graph.</p>
+
+    <h3>Problems and Fixes</h3>
+    <table>
+      <tr><th>Problem</th><th>Cause</th><th>Fix</th></tr>
+      <tr>
+        <td><strong>Dead Ends</strong></td>
+        <td>Node with no outgoing edges — absorbs rank, never redistributes</td>
+        <td>Teleport: treat dead-end as linking to all pages uniformly</td>
+      </tr>
+      <tr>
+        <td><strong>Spider Traps</strong></td>
+        <td>Group of pages linking only to each other — traps all rank</td>
+        <td>Random teleport with probability (1−β)</td>
+      </tr>
+    </table>
+
+    <h3>Google Matrix (The Full Formula)</h3>
+    <div class="formula">A = β · M  +  (1 − β) · [1/N]_{N×N}
+
+r = A · r
+
+β ∈ [0.8, 0.9]  — damping factor (probability of following a link)
+(1 − β)         — probability of teleporting to a random page
+
+Interpretation: with prob β follow a link; with prob (1−β) jump anywhere.</div>
+
+    <h3>Efficient Sparse Implementation (Tutorial 7 formula)</h3>
+    <p>For sparse graphs, avoid computing the full (1−β)[1/N]J matrix. Instead use:</p>
+    <div class="formula">r^(t+1) = β · M · r^t  +  (1−β)/N
+
+This is algebraically equivalent to the Google Matrix form but avoids the dense
+N×N matrix — only the sparse M needs to be materialized.
+
+Steps in code:
+  1. links = [(src, dst), ...]  as RDD
+  2. adj_list = links.groupByKey()
+  3. ranks = adj_list.map(lambda x: (x[0], 1.0/N))
+  4. For each iteration:
+       contribs = adj_list.join(ranks).flatMap(
+           lambda (url, (links, rank)):
+               [(link, rank/len(links)) for link in links]
+       )
+       ranks = contribs.reduceByKey(add).mapValues(
+           lambda rank: beta * rank + (1 - beta) / N
+       )</div>
+
+    <div class="callout warning"><strong>Common exam question:</strong> Given a small graph, compute PageRank by hand using one or two iterations of power iteration. Know how to build matrix M and apply the Google formula.</div>
+
+    <h3>Worked Example (3-node graph)</h3>
+    <div class="formula">Nodes: A, B, C
+Edges: A→B, A→C, B→C, C→A
+
+      A    B    C
+M = [ 0    0    1  ]   ← who links TO A
+    [ 1/2  0    0  ]   ← who links TO B
+    [ 1/2  1    0  ]   ← who links TO C
+
+Start: r = [1/3, 1/3, 1/3]^T
+After 1 iter: r = M · r = [1/3, 1/6, 1/2]^T
+... iterate until convergence</div>
+  </div>
+</div>
+
+<!-- ============================================================ L8 ============================================================ -->
+<div class="section" id="l8">
+  <div class="section-header">
+    <div class="num">8</div>
+    <h2>Graph Analytics</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>Graph Basics</h3>
+    <table>
+      <tr><th>Term</th><th>Definition</th><th>Formula</th></tr>
+      <tr><td>Degree d(v)</td><td>Number of edges incident to vertex v</td><td>—</td></tr>
+      <tr><td>Average Degree</td><td>Mean degree across all nodes</td><td>2|E| / N</td></tr>
+      <tr><td>Graph Density</td><td>Fraction of possible edges that exist</td><td>2|E| / (N(N−1))</td></tr>
+      <tr><td>Path</td><td>Sequence of nodes where each pair is linked</td><td>—</td></tr>
+      <tr><td>Distance d(u,v)</td><td>Number of edges in shortest path between u and v</td><td>BFS</td></tr>
+      <tr><td>Diameter</td><td>Maximum shortest-path distance in the graph</td><td>max over all pairs d(u,v)</td></tr>
+      <tr><td>Avg Path Length</td><td>Average distance between all pairs of nodes</td><td>mean of all d(u,v)</td></tr>
+    </table>
+
+    <h3>Clustering Coefficient</h3>
+    <p>Measures how tightly a node's neighbors are connected to each other.</p>
+    <div class="formula">C(v) = (2 · m_v) / (d_v · (d_v − 1))
+
+m_v  = number of edges between v's neighbors
+d_v  = degree of v
+d_v(d_v-1)/2 = maximum possible edges among neighbors
+
+Range: [0, 1].  1 = all neighbors connected; 0 = no neighbor connections.</div>
+
+    <h3>Centrality Measures</h3>
+    <table>
+      <tr><th>Measure</th><th>Intuition</th><th>Formula</th><th>Limitation</th></tr>
+      <tr>
+        <td><strong>Closeness</strong></td>
+        <td>How close is this node to all others?</td>
+        <td>C_clos(v) = (N−1) / Σ_x d(v,x)</td>
+        <td>Undefined for disconnected graphs</td>
+      </tr>
+      <tr>
+        <td><strong>Harmonic</strong></td>
+        <td>Closeness but handles disconnected components</td>
+        <td>C_harm(v) = Σ_{x≠v} 1/d(v,x)</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><strong>Betweenness</strong></td>
+        <td>How often is this node on a shortest path?</td>
+        <td>BC(v) = Σ_{s≠t} σ_st(v) / σ_st</td>
+        <td>Expensive to compute (O(VE))</td>
+      </tr>
+      <tr>
+        <td><strong>Eigenvector</strong></td>
+        <td>Important if connected to important nodes</td>
+        <td>x_v = (1/λ) Σ_{u∈N(v)} x_u</td>
+        <td>Ill-defined for disconnected graphs</td>
+      </tr>
+    </table>
+
+    <h4>Betweenness Notation:</h4>
+    <div class="formula">σ_st       = total number of shortest paths from s to t
+σ_st(v)    = number of those paths that pass through v
+BC(v)      = Σ_{s≠v≠t}  σ_st(v) / σ_st</div>
+
+    <h3>Network Properties (Small-World &amp; Scale-Free)</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>Small-World Network</h4>
+        <ul>
+          <li>Short average path lengths (6 degrees of separation)</li>
+          <li>High clustering coefficient</li>
+          <li>Example: social networks, WWW</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Scale-Free Network</h4>
+        <ul>
+          <li>Degree distribution follows power law: P(k) ~ k^(-γ)</li>
+          <li>Most nodes have few connections; a few hubs have many</li>
+          <li>Example: internet topology, citation networks</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Graph Connectivity</h3>
+    <ul>
+      <li><strong>Connected graph:</strong> there exists a path between every pair of nodes.</li>
+      <li><strong>Giant component:</strong> the largest connected subgraph — in web/social graphs this contains most nodes.</li>
+      <li><strong>BFS (Breadth-First Search)</strong> is used to find connected components and compute shortest paths.</li>
+    </ul>
+    <div class="formula">BFS from source s:
+  1. Mark s as visited, add to queue
+  2. While queue not empty:
+       u = dequeue
+       for each neighbour v of u:
+           if v not visited: mark visited, enqueue v, distance[v] = distance[u]+1
+  Result: distance[] gives shortest path from s to all reachable nodes</div>
+
+    <h3>Betweenness Centrality — Worked Example</h3>
+    <p>Graph: A–B–C–D–E (linear chain) + B–D shortcut</p>
+    <div class="formula">Nodes: A, B, C, D, E
+Edges: A-B, B-C, C-D, D-E, B-D
+
+To compute BC(B):
+  Count all (s,t) pairs where s≠B≠t
+  For each pair, find σ_st (total shortest paths) and σ_st(B) (paths through B)
+
+  Pair (A,C): paths A→B→C. σ=1, σ(B)=1 → contribution 1/1 = 1
+  Pair (A,D): paths A→B→D, A→B→C→D. σ=2 (B→D shorter, so only 1 shortest)
+             Shortest: A→B→D. σ=1, σ(B)=1 → contribution 1
+  Pair (A,E): A→B→D→E. σ(B)=1 → contribution 1
+  Pair (C,E): C→D→E. σ(B)=0 → contribution 0
+  ... (sum all pairs)
+
+Key insight: nodes that are "bridges" between clusters have high betweenness.
+             Removing high-betweenness nodes fragments the network.</div>
+
+    <h3>Degree Distribution</h3>
+    <ul>
+      <li><strong>Degree distribution P(k):</strong> probability that a randomly chosen node has degree k.</li>
+      <li>Random graphs → bell curve (Poisson-like).</li>
+      <li>Scale-free networks → power law: P(k) ~ k<sup>−γ</sup> (heavy tail — few hubs with very high degree).</li>
+    </ul>
+
+    <div class="callout tip"><strong>Exam tip:</strong> Be able to compute clustering coefficient and betweenness centrality for a small hand-drawn graph.</div>
+  </div>
+</div>
+
+<!-- ============================================================ L9 ============================================================ -->
+<div class="section" id="l9">
+  <div class="section-header">
+    <div class="num">9</div>
+    <h2>Big Data Storage &amp; NoSQL</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>ACID Properties (Traditional RDBMS)</h3>
+    <table>
+      <tr><th>Property</th><th>Meaning</th></tr>
+      <tr><td><strong>Atomicity</strong></td><td>All operations in a transaction succeed, or none do (all-or-nothing)</td></tr>
+      <tr><td><strong>Consistency</strong></td><td>DB moves from one valid state to another; all rules enforced</td></tr>
+      <tr><td><strong>Isolation</strong></td><td>Concurrent transactions execute as if sequential; no interference</td></tr>
+      <tr><td><strong>Durability</strong></td><td>Committed transactions survive system failure</td></tr>
+    </table>
+
+    <h3>CAP Theorem</h3>
+    <p>In a distributed system you can guarantee <strong>at most 2 of the 3</strong>:</p>
+    <div class="grid2">
+      <div class="card">
+        <h4>C — Consistency</h4>
+        Every read returns the most recent write (or an error).
+      </div>
+      <div class="card">
+        <h4>A — Availability</h4>
+        Every request gets a (non-error) response — but it may not be the most recent data.
+      </div>
+    </div>
+    <div class="card" style="margin: 12px 0;">
+      <h4>P — Partition Tolerance</h4>
+      System continues operating despite network partitions (some messages between nodes dropped/delayed).
+    </div>
+
+    <table>
+      <tr><th>Combination</th><th>Trade-off</th><th>Examples</th></tr>
+      <tr>
+        <td><span class="tag blue">CP</span></td>
+        <td>Strong consistency; <em>unavailable</em> during network partition</td>
+        <td>Traditional RDBMS (MySQL, PostgreSQL), HBase, Zookeeper</td>
+      </tr>
+      <tr>
+        <td><span class="tag green">AP</span></td>
+        <td>Always available; data may be <em>stale</em></td>
+        <td>Cassandra, DynamoDB, CouchDB (NoSQL)</td>
+      </tr>
+      <tr>
+        <td><span class="tag orange">CA</span></td>
+        <td>Consistent and available; <em>no partition tolerance</em> (impossible in real distributed systems)</td>
+        <td>Single-node RDBMS (no distribution)</td>
+      </tr>
+    </table>
+
+    <div class="callout danger"><strong>Key rule:</strong> In practice, network partitions WILL happen. So real distributed systems must choose between C and A. CA is only theoretically possible on a single machine.</div>
+
+    <h3>Strong vs Eventual Consistency</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>Strong Consistency</h4>
+        <ul>
+          <li>Read after write <em>always</em> returns the new value</li>
+          <li>All nodes see the same data at the same time</li>
+          <li>Higher latency; may block writes</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Eventual Consistency</h4>
+        <ul>
+          <li>Given enough time, all nodes converge to same value</li>
+          <li>Reads may return stale data temporarily</li>
+          <li>Lower latency; always writable</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>BASE Model (NoSQL alternative to ACID)</h3>
+    <table>
+      <tr><th>Letter</th><th>Stands for</th><th>Meaning</th></tr>
+      <tr><td><strong>B</strong></td><td>Basically Available</td><td>System always acknowledges requests (may return stale data)</td></tr>
+      <tr><td><strong>S</strong></td><td>Soft State</td><td>State of system may change over time even without new input (due to propagation)</td></tr>
+      <tr><td><strong>E</strong></td><td>Eventually Consistent</td><td>System will reach consistency once propagation completes</td></tr>
+    </table>
+
+    <h3>NoSQL Data Models</h3>
+    <table>
+      <tr><th>Type</th><th>Structure</th><th>Example DBs</th><th>Use case</th></tr>
+      <tr><td>Key-Value</td><td>Simple {key: value}</td><td>Redis, DynamoDB</td><td>Sessions, caching</td></tr>
+      <tr><td>Document</td><td>JSON/BSON documents</td><td>MongoDB, CouchDB</td><td>Content, catalogs</td></tr>
+      <tr><td>Column-Family</td><td>Rows + column families</td><td>Cassandra, HBase</td><td>Time-series, analytics</td></tr>
+      <tr><td>Graph</td><td>Nodes + edges</td><td>Neo4j</td><td>Social networks, recommendations</td></tr>
+    </table>
+
+    <h3>Challenges in Distributed RDBMS</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>Partitioning (Sharding)</h4>
+        <ul>
+          <li>Split data across multiple nodes by key range or hash</li>
+          <li>Improves write performance</li>
+          <li>Hurts reads that join across partitions</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Replication</h4>
+        <ul>
+          <li>Copy same data to multiple nodes</li>
+          <li>Improves fault tolerance and read performance</li>
+          <li>Hurts write performance (must update all replicas)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ L10 ============================================================ -->
+<div class="section" id="l10">
+  <div class="section-header">
+    <div class="num">10</div>
+    <h2>Recommendation Systems</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>Two Main Approaches</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>Content-Based Filtering</h4>
+        <ul>
+          <li>Recommend items <em>similar to what the user liked before</em></li>
+          <li>Uses item features (genre, director, tags…)</li>
+          <li>No need for data from other users</li>
+          <li><strong>Problem:</strong> Limited novelty — only recommends what's already known</li>
+          <li>Cold-start OK for items; cold-start bad for new users</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Collaborative Filtering (CF)</h4>
+        <ul>
+          <li>Recommend based on <em>what similar users liked</em></li>
+          <li>No item features needed — only ratings matrix</li>
+          <li><strong>Problem:</strong> Cold-start for new users AND new items</li>
+          <li>Sparsity problem: most users rate very few items</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Collaborative Filtering — Two Variants</h3>
+    <table>
+      <tr><th></th><th>User-Based CF</th><th>Item-Based CF</th></tr>
+      <tr><td>Idea</td><td>Find users similar to target user; recommend what they liked</td><td>Find items similar to those the user rated; recommend them</td></tr>
+      <tr><td>Similarity</td><td>Between users (row vectors)</td><td>Between items (column vectors)</td></tr>
+      <tr><td>Stability</td><td>User preferences change → less stable</td><td>Item characteristics stable → more stable</td></tr>
+      <tr><td>Scale</td><td>Costly as users grow</td><td>Pre-compute item-item matrix (used by Amazon)</td></tr>
+    </table>
+
+    <h3>Similarity Metrics</h3>
+    <div class="formula">Cosine Similarity:
+  sim(u, v) = (u · v) / (||u|| · ||v||)
+  Range: [-1, 1].  1 = identical direction, 0 = orthogonal, -1 = opposite.
+
+Pearson Correlation (mean-centered cosine):
+  sim(u, v) = Σ(r_ui - r̄_u)(r_vi - r̄_v) / (σ_u · σ_v)
+  Adjusts for different user rating scales (harsh vs generous raters).</div>
+
+    <h3>Matrix Factorization (Latent Factor Model)</h3>
+    <p>Decompose ratings matrix R (users × items) into two lower-rank matrices:</p>
+    <div class="formula">R ≈ U · V^T
+
+U  = (users × k)   latent user matrix
+V  = (items × k)   latent item matrix
+k  = number of latent factors (e.g., 50–200)
+
+Predicted rating: r̂_ui = u_i^T · v_j
+
+Optimize: minimize Σ (r_ui - u_i^T v_j)² + λ(||U||² + ||V||²)
+  using SGD or ALS (Alternating Least Squares)</div>
+
+    <h3>Evaluation Metrics</h3>
+    <table>
+      <tr><th>Metric</th><th>Formula</th><th>Measures</th></tr>
+      <tr><td>RMSE</td><td>√(Σ(r̂ - r)²/n)</td><td>Prediction accuracy (lower = better)</td></tr>
+      <tr><td>MAE</td><td>Σ|r̂ - r|/n</td><td>Mean absolute error</td></tr>
+      <tr><td>Precision@K</td><td>Relevant in top-K / K</td><td>How many recommendations are good?</td></tr>
+      <tr><td>Recall@K</td><td>Relevant in top-K / total relevant</td><td>Did we find all good items?</td></tr>
+    </table>
+
+    <h3>ALS (Alternating Least Squares) — How it works</h3>
+    <p>ALS is the standard algorithm for matrix factorization in Spark ML:</p>
+    <div class="step"><div class="step-num">1</div><div>Initialize U and V (user/item matrices) with random values.</div></div>
+    <div class="step"><div class="step-num">2</div><div>Fix V, solve for U by minimizing the loss (least squares on each user row).</div></div>
+    <div class="step"><div class="step-num">3</div><div>Fix U, solve for V by minimizing the loss (least squares on each item column).</div></div>
+    <div class="step"><div class="step-num">4</div><div>Repeat steps 2–3 until convergence (loss stops decreasing).</div></div>
+    <pre># Spark ML ALS implementation (Tutorial 9)
+from pyspark.ml.recommendation import ALS
+from pyspark.ml.evaluation import RegressionEvaluator
+
+# Split data
+(training, test) = data.randomSplit([0.8, 0.2], seed=1234)
+
+# Build model
+als = ALS(maxIter=5, regParam=0.01,
+          userCol="userId", itemCol="movieId", ratingCol="rating")
+model = als.fit(training)
+
+# Evaluate with RMSE
+predictions = model.transform(test)
+evaluator = RegressionEvaluator(metricName="rmse",
+                                 labelCol="rating",
+                                 predictionCol="prediction")
+rmse = evaluator.evaluate(predictions)
+
+# Get top recommendations for a single user
+single_user = test.filter(test['userId']==11).select(['movieId','userId'])
+model.transform(single_user).orderBy('prediction', ascending=False).show()</pre>
+
+    <h3>Challenges</h3>
+    <ul>
+      <li><strong>Cold Start:</strong> New user has no ratings; new item has no ratings. Fix: ask for initial preferences, use item content.</li>
+      <li><strong>Sparsity:</strong> Typical ratings matrix is &gt;99% empty. Fix: matrix factorization.</li>
+      <li><strong>Scalability:</strong> Millions of users × millions of items. Fix: approximate nearest neighbors, distributed ALS.</li>
+      <li><strong>Filter Bubble:</strong> Always recommending similar items → lack of diversity. Fix: inject serendipitous recommendations.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ CODE REFERENCE ============================================================ -->
+<div class="section" id="code">
+  <div class="section-header">
+    <div class="num">T</div>
+    <h2>Tutorial Code Reference (T01–T04 &amp; Notebooks)</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>T01 — Pandas Essentials</h3>
+    <pre># Read TSV file
+df = pd.read_csv('data.tsv', delimiter='\t')
+
+# Filter rows with multiple conditions
+df[(df['gender']=='F') &amp; (df['year'] > 1990)].sort_values('year', ascending=False)
+
+# Groupby + mean
+merged_ratings.groupby('name')[['rating']].mean().sort_index()
+
+# Merge two DataFrames
+merged = pd.merge(left=df, right=ratings, left_on=['userID','movieID'],
+                                          right_on=['userID','movieID'])
+
+# Handle missing values
+df.fillna('-')           # replace NaN with '-'
+df.dropna(axis=0)        # drop rows with any NaN
+df.dropna(subset=['col'])  # drop rows where specific column is NaN
+
+# List comprehension — 2D filter
+filtered = [[x for x in row if x > 50] for row in data]
+# 1D flatten + filter
+filtered = [x for row in data for x in row if x > 50]
+
+# df['col']   → Series (1D)
+# df[['col']] → DataFrame (2D)</pre>
+
+    <h3>T02 — Dask</h3>
+    <pre>import dask.array as da
+import dask.dataframe as dd
+
+# Create large Dask array
+arr = da.random.normal(20, 0.1, size=(20000,20000), chunks=(10000,10000))
+arr.mean(axis=0).compute()   # .compute() triggers execution
+
+# Dask DataFrame operations (same API as pandas)
+ddf = dd.read_csv('flights.csv')
+ddf[~ddf['Cancelled']].groupby("Origin").Origin.count().compute()
+ddf.groupby("Origin").DepDelay.mean().compute()
+ddf.groupby("DayOfWeek").DepDelay.mean().idxmax().compute()
+
+# map_partitions — apply function to each pandas partition
+def converter(df, multiplier=1):
+    return df * multiplier
+
+meta = pd.Series(name="Distance", dtype="float64")
+distance_km = ddf.Distance.map_partitions(converter, multiplier=1.60934, meta=meta)
+
+# Chunk size matters: too small → overhead, too large → memory issues
+# Recommended: 100 MB – 1 GB per chunk</pre>
+
+    <h3>T03 — Spark RDD (Word Count, DNA)</h3>
+    <pre>from operator import add
+
+# Word count
+textRDD = spark.textFile('wordCountEx.txt')
+result = textRDD.flatMap(lambda x: x.split()) \
+    .map(lambda x: (x.lower(), 1)) \
+    .reduceByKey(add) \
+    .sortBy(lambda x: x[1], ascending=False) \
+    .collect()
+
+# DNA k-mer counting (patterns of length k)
+k = 5
+def generatePattern(line, length):
+    return [(line[i:i+length], 1) for i in range(len(line) - length + 1)]
+
+seqRDD = dnaRDD.flatMap(lambda line: generatePattern(line, k)) \
+    .reduceByKey(add) \
+    .sortBy(lambda x: x[1], ascending=False)
+
+# Palindrome filter
+def isPalindrome(item):
+    key = item[0]
+    return key == key[::-1]   # reverse string trick
+
+palindromes = seqRDD.filter(lambda x: x[1] > 1) \
+    .filter(isPalindrome) \
+    .collect()</pre>
+
+    <h3>T04 — Spark SQL / DataFrame</h3>
+    <pre>from pyspark.sql import Row
+from pyspark.sql.functions import col, when
+
+# RDD → DataFrame using Row objects
+rdd = sc.parallelize([("ctaag", 103), ("gccta", 96)])
+df = rdd.map(lambda x: Row(sequence=x[0], count=x[1])).toDF()
+
+# Read CSV with schema inference
+df = ss.read.csv("hills2000.txt", header=True, inferSchema=True)
+
+# Add calculated column
+df = df.withColumn('avg_time', (col('time') + col('timef')) / 2)
+df = df.withColumn('speed', col('dist') / col('avg_time'))
+
+# Conditional column (like SQL CASE WHEN)
+df = df.withColumn('level',
+    when(col('diff_score') &lt; 200, 'Easy')
+    .when(col('diff_score') &lt; 350, 'Moderate')
+    .otherwise('Difficult'))
+
+# Group + aggregate
+df.groupby("rownames").avg('speed').sort('avg(speed)', ascending=False).show(5)
+df.groupby("level").count().show()
+
+# Union two DataFrames (same schema)
+combined = df1.union(df2)
+
+# TF / DF calculation with RDD
+tokenized = sentenceData.rdd.map(lambda x: (x.document, x.sentence.lower().split()))
+
+# Term Frequency (count per doc)
+tf = tokenized.flatMapValues(lambda x: x).countByValue()
+
+# Document Frequency (how many docs contain term)
+doc_freq = tokenized.flatMapValues(lambda x: x).distinct() \
+    .map(lambda x: (x[1], x[0])).countByKey()</pre>
+
+    <h3>Tutorial 9 — ALS Recommender</h3>
+    <pre>from pyspark.ml.recommendation import ALS
+from pyspark.ml.evaluation import RegressionEvaluator
+
+data = ss.read.csv('movielens_ratings.csv', header=True, inferSchema=True)
+(training, test) = data.randomSplit([0.8, 0.2], seed=1234)
+
+als = ALS(maxIter=5, regParam=0.01,
+          userCol="userId", itemCol="movieId", ratingCol="rating")
+model = als.fit(training)
+
+predictions = model.transform(test)
+evaluator = RegressionEvaluator(metricName="rmse",
+    labelCol="rating", predictionCol="prediction")
+print("RMSE:", evaluator.evaluate(predictions))
+
+# Recommend for a specific user
+single_user = test.filter(test['userId']==11).select(['movieId','userId'])
+model.transform(single_user).orderBy('prediction', ascending=False).show()</pre>
+
+    <h3>Spark — flatMap vs map (key difference)</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>map()</h4>
+        <pre>rdd = sc.parallelize(['hello world', 'hi'])
+rdd.map(lambda x: x.split()).collect()
+# [['hello','world'], ['hi']]
+# → list of lists (nested)</pre>
+      </div>
+      <div class="card">
+        <h4>flatMap()</h4>
+        <pre>rdd.flatMap(lambda x: x.split()).collect()
+# ['hello','world','hi']
+# → flat list (one level)</pre>
+      </div>
+    </div>
+
+    <div class="callout tip"><strong>Pattern to memorise:</strong> <code>flatMap → map → reduceByKey → sortBy → collect()</code> is the canonical word-count pipeline. Expect to write or trace it in the exam.</div>
+  </div>
+</div>
+
+<!-- ============================================================ QUICK SUMMARY ============================================================ -->
+<div class="section" id="summary">
+  <div class="section-header">
+    <div class="num">★</div>
+    <h2>Quick Reference Summary</h2>
+  </div>
+  <div class="section-body">
+
+    <h3>Must-Know Formulas</h3>
+    <table>
+      <tr><th>Topic</th><th>Formula</th></tr>
+      <tr><td>Average graph degree</td><td>2|E| / N</td></tr>
+      <tr><td>Graph density</td><td>2|E| / (N(N−1))</td></tr>
+      <tr><td>Clustering coefficient</td><td>C(v) = 2m_v / (d_v(d_v−1))</td></tr>
+      <tr><td>Closeness centrality</td><td>(N−1) / Σ d(v,x)</td></tr>
+      <tr><td>Betweenness centrality</td><td>Σ σ_st(v) / σ_st</td></tr>
+      <tr><td>PageRank (Google Matrix)</td><td>r = [βM + (1−β)(1/N)J] · r</td></tr>
+      <tr><td>Skip-gram probability</td><td>exp(u_o^T v_c) / Σ_w exp(u_w^T v_c)</td></tr>
+      <tr><td>Levenshtein (recurrence)</td><td>dp[i][j] = 1 + min(dp[i−1][j], dp[i][j−1], dp[i−1][j−1])</td></tr>
+      <tr><td>Matrix factorization prediction</td><td>r̂_ui = u_i^T · v_j</td></tr>
+    </table>
+
+    <h3>Key Comparisons at a Glance</h3>
+    <table>
+      <tr><th>Concept A</th><th>vs</th><th>Concept B</th><th>Key Difference</th></tr>
+      <tr><td>Stemming</td><td>vs</td><td>Lemmatization</td><td>Stem may not be real word; lemma always is</td></tr>
+      <tr><td>Skip-gram</td><td>vs</td><td>CBOW</td><td>Skip-gram: center→context; CBOW: context→center</td></tr>
+      <tr><td>Narrow transform</td><td>vs</td><td>Wide transform</td><td>Wide requires network shuffle</td></tr>
+      <tr><td>Transformation</td><td>vs</td><td>Action (Spark)</td><td>Transformation is lazy; action triggers execution</td></tr>
+      <tr><td>ACID</td><td>vs</td><td>BASE</td><td>ACID = strict consistency; BASE = eventual consistency</td></tr>
+      <tr><td>CP system</td><td>vs</td><td>AP system</td><td>CP sacrifices availability; AP sacrifices consistency</td></tr>
+      <tr><td>Content-based</td><td>vs</td><td>Collaborative filtering</td><td>Content uses item features; CF uses user behaviour</td></tr>
+      <tr><td>Strong consistency</td><td>vs</td><td>Eventual consistency</td><td>Strong: always up-to-date; Eventual: catches up over time</td></tr>
+      <tr><td>RDD</td><td>vs</td><td>DataFrame</td><td>DF is optimized via Catalyst; RDD is lower-level</td></tr>
+      <tr><td>Data Lake</td><td>vs</td><td>Data Warehouse</td><td>Lake: raw schema-on-read; Warehouse: structured schema-on-write</td></tr>
+    </table>
+
+    <h3>CAP Theorem Cheat Sheet</h3>
+    <table>
+      <tr><th>Choose</th><th>Give Up</th><th>Typical System</th></tr>
+      <tr><td>C + A</td><td>P (partition tolerance)</td><td>Single-machine RDBMS</td></tr>
+      <tr><td>C + P</td><td>A (availability during partition)</td><td>MySQL, HBase, Zookeeper</td></tr>
+      <tr><td>A + P</td><td>C (may return stale data)</td><td>Cassandra, DynamoDB, CouchDB</td></tr>
+    </table>
+
+    <h3>PageRank Algorithm Steps</h3>
+    <div class="step"><div class="step-num">1</div><div>Build column-stochastic matrix M from the graph adjacency.</div></div>
+    <div class="step"><div class="step-num">2</div><div>Handle dead ends by teleporting (treat dead-end as linking to all pages).</div></div>
+    <div class="step"><div class="step-num">3</div><div>Apply Google Matrix: A = βM + (1−β)(1/N)J.</div></div>
+    <div class="step"><div class="step-num">4</div><div>Initialize r uniformly: r = [1/N, …, 1/N].</div></div>
+    <div class="step"><div class="step-num">5</div><div>Iterate r = A·r until convergence.</div></div>
+
+    <h3>Text Preprocessing Checklist</h3>
+    <ol>
+      <li>Remove HTML / special characters</li>
+      <li>Lowercase everything</li>
+      <li>Tokenize</li>
+      <li>Remove stop words</li>
+      <li>Stem or Lemmatize</li>
+      <li>Encode (One-Hot, BoW, or TF-IDF)</li>
+    </ol>
+
+    <div class="callout tip">
+      <strong>Last-minute revision priority:</strong>
+      <ol style="margin: 6px 0 0 18px;">
+        <li>6 V's with examples</li>
+        <li>PageRank formula + power iteration + dead ends/spider traps</li>
+        <li>CAP theorem — which systems are CP vs AP</li>
+        <li>Centrality formulas (closeness, betweenness)</li>
+        <li>Spark transformations vs actions; narrow vs wide</li>
+        <li>Skip-gram vs CBOW</li>
+        <li>Levenshtein distance (DP table)</li>
+        <li>Collaborative vs content-based filtering</li>
+      </ol>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<div style="text-align:center; color: var(--muted); padding: 30px; font-size: 0.82em;">
+  DSAI4205 Big Data Analytics — Exam Review Notes · PolyU
+</div>
+
+</body>
+</html>
