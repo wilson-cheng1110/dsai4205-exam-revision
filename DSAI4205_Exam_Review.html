@@ -528,6 +528,66 @@ inv_index.collect()
       </div>
     </div>
 
+    <h3>TF-IDF — Full Formula with Worked Example</h3>
+    <p><strong>TF</strong>: how many times term t appears in document d. <strong>IDF</strong>: penalises terms common across many documents.</p>
+    <div class="formula">IDF(t, D)       = log( (|D|+1) / (DF(t,D)+1) )     ← +1 = Laplace smoothing
+TF-IDF(t, d, D) = TF(t, d) × IDF(t, D)
+
+|D| = total docs;  DF(t,D) = docs containing t;  High TF-IDF = frequent in ONE doc, rare elsewhere</div>
+    <h4>Worked Example (|D|=2)</h4>
+    <div class="formula">D0="Python python Spark Spark",  D1="Python SQL"
+
+TF(python,D0)=2  TF(spark,D0)=2  TF(python,D1)=1  TF(sql,D1)=1
+DF(python)=2     DF(spark)=1     DF(sql)=1
+
+IDF(python) = log(3/3) = 0       ← in BOTH docs → not discriminating
+IDF(spark)  = log(3/2) ≈ 0.405
+IDF(sql)    = log(3/2) ≈ 0.405
+
+TF-IDF(python,D0) = 2×0     = 0
+TF-IDF(spark, D0) = 2×0.405 = 0.811   ← "spark" is keyword for D0
+TF-IDF(sql,   D1) = 1×0.405 = 0.405   ← "sql"   is keyword for D1</div>
+
+    <h3>Spark ML NLP Pipeline</h3>
+    <table>
+      <tr><th>Component</th><th>What it does</th><th>Key params</th></tr>
+      <tr><td><code>Tokenizer</code></td><td>Split sentence → word tokens</td><td>inputCol, outputCol</td></tr>
+      <tr><td><code>StopWordsRemover</code></td><td>Remove high-freq, low-info words</td><td>inputCol, outputCol</td></tr>
+      <tr><td><code>NGram(n=2)</code></td><td>Generate bigrams / n-word phrases</td><td>n=2 for bigrams</td></tr>
+      <tr><td><code>CountVectorizer</code></td><td>Term frequency sparse vectors</td><td>minTF, minDF, vocabSize</td></tr>
+      <tr><td><code>IDF</code></td><td>Apply inverse-doc-freq weighting</td><td>inputCol="tf"</td></tr>
+    </table>
+    <pre>from pyspark.ml import Pipeline
+from pyspark.ml.feature import Tokenizer, StopWordsRemover, NGram, CountVectorizer, IDF
+
+pipeline = Pipeline(stages=[
+    Tokenizer(inputCol="sentence", outputCol="words"),
+    StopWordsRemover(inputCol="words", outputCol="filtered"),
+    NGram(n=2, inputCol="filtered", outputCol="ngrams"),
+    CountVectorizer(minTF=1.0, minDF=1.0, vocabSize=20,
+                    inputCol="ngrams", outputCol="tf"),
+    IDF(inputCol="tf", outputCol="tfidf")
+])
+model  = pipeline.fit(data)
+result = model.transform(data)</pre>
+
+    <h3>UDFs (User-Defined Functions)</h3>
+    <pre>from pyspark.sql.functions import udf
+from pyspark.sql.types import StringType
+
+my_udf = udf(lambda text: text.upper(), StringType())
+df.withColumn("upper_text", my_udf(df["text"])).show()</pre>
+
+    <h3>countByKey() vs countByValue()</h3>
+    <div class="formula">countByKey()   → count occurrences of each KEY   e.g. {"Mazda":2, "Ferrari":1}
+countByValue() → count occurrences of each (key,value) PAIR
+
+# Document frequency pattern:
+tokenized.flatMapValues(lambda x: x)   # one (docID, word) per word
+         .distinct()                    # unique (docID, word) pairs
+         .map(lambda x: (x[1], x[0]))  # flip to (word, docID)
+         .countByKey()                  # how many docs contain each word</div>
+
     <h3>Levenshtein (Edit) Distance</h3>
     <p>Minimum number of single-character edits to transform one string to another.</p>
     <p><strong>Operations:</strong> Insert, Delete, Substitute (each costs 1)</p>
@@ -946,6 +1006,45 @@ Key insight: nodes that are "bridges" between clusters have high betweenness.
       <tr><td>Graph</td><td>Nodes + edges</td><td>Neo4j</td><td>Social networks, recommendations</td></tr>
     </table>
 
+    <h3>Transactions &amp; OLTP</h3>
+    <p><strong>Transaction</strong>: a sequence of operations executed as a single logical unit (all succeed or all fail).</p>
+    <div class="formula">BEGIN TRANSACTION
+  UPDATE accounts SET balance = balance - 100 WHERE id = 'A';
+  UPDATE accounts SET balance = balance + 100 WHERE id = 'B';
+COMMIT              ← makes changes permanent
+-- or ABORT/ROLLBACK ← undoes all changes if something fails</div>
+    <div class="grid2">
+      <div class="card">
+        <h4>OLTP (Online Transaction Processing)</h4>
+        <ul>
+          <li>Many short read/write transactions (ms latency)</li>
+          <li>High concurrency, frequent inserts/updates</li>
+          <li>Examples: banking, e-commerce, booking systems</li>
+          <li>Needs full ACID guarantees</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>OLAP (Online Analytical Processing)</h4>
+        <ul>
+          <li>Few complex read-heavy queries over large data</li>
+          <li>Aggregations, historical analysis</li>
+          <li>Examples: data warehouses, reporting dashboards</li>
+          <li>Spark, Hive, SparkSQL are OLAP tools</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Key-Value Store Operations</h3>
+    <table>
+      <tr><th>Operation</th><th>Description</th></tr>
+      <tr><td><code>Get(key)</code></td><td>Retrieve value for a single key</td></tr>
+      <tr><td><code>Put(key, value)</code></td><td>Insert or update a key-value pair</td></tr>
+      <tr><td><code>Delete(key)</code></td><td>Remove a key-value pair</td></tr>
+      <tr><td><code>Multi-get([keys])</code></td><td>Batch retrieve multiple values in one call</td></tr>
+      <tr><td><code>Multi-put({k:v})</code></td><td>Batch insert/update multiple pairs</td></tr>
+      <tr><td><code>Range query(k1, k2)</code></td><td>Retrieve all keys between k1 and k2 (sorted store only)</td></tr>
+    </table>
+
     <h3>Challenges in Distributed RDBMS</h3>
     <div class="grid2">
       <div class="card">
@@ -975,6 +1074,15 @@ Key insight: nodes that are "bridges" between clusters have high betweenness.
     <h2>Recommendation Systems</h2>
   </div>
   <div class="section-body">
+
+    <h3>Utility Matrix</h3>
+    <p>A <strong>utility matrix</strong> (or ratings matrix) has users as rows, items as columns, and entries are ratings. Most entries are empty — this is the <strong>sparsity problem</strong>.</p>
+    <table>
+      <tr><th>Rating type</th><th>Description</th><th>Examples</th></tr>
+      <tr><td><strong>Explicit</strong></td><td>User deliberately provides a rating</td><td>Stars (1–5), thumbs up/down, written review</td></tr>
+      <tr><td><strong>Implicit</strong></td><td>Inferred from behaviour without direct rating</td><td>Watch time, clicks, purchases, search history</td></tr>
+    </table>
+    <div class="callout info"><strong>Trade-off:</strong> Explicit ratings are accurate but sparse (users rarely rate). Implicit ratings are dense but noisy (watching something ≠ liking it).</div>
 
     <h3>Two Main Approaches</h3>
     <div class="grid2">
@@ -1009,7 +1117,12 @@ Key insight: nodes that are "bridges" between clusters have high betweenness.
     </table>
 
     <h3>Similarity Metrics</h3>
-    <div class="formula">Cosine Similarity:
+    <div class="formula">Jaccard Similarity (for binary/implicit data):
+  sim(A, B) = |A ∩ B| / |A ∪ B|
+  Items rated by BOTH / Items rated by EITHER
+  Range [0,1]; ignores rating values — good for implicit data
+
+Cosine Similarity:
   sim(u, v) = (u · v) / (||u|| · ||v||)
   Range: [-1, 1].  1 = identical direction, 0 = orthogonal, -1 = opposite.
 
@@ -1030,13 +1143,24 @@ Predicted rating: r̂_ui = u_i^T · v_j
 Optimize: minimize Σ (r_ui - u_i^T v_j)² + λ(||U||² + ||V||²)
   using SGD or ALS (Alternating Least Squares)</div>
 
+    <h3>Baseline Estimate</h3>
+    <p>Before applying CF, subtract user and item biases to get a better baseline prediction:</p>
+    <div class="formula">b_ui = μ + b_u + b_i
+
+μ   = global average rating
+b_u = user bias (how harsh/generous the user rates vs average)
+b_i = item bias (how popular/unpopular the item is vs average)
+
+Improved CF prediction:  r̂_ui = b_ui + (CF adjustment from neighbours)</div>
+
     <h3>Evaluation Metrics</h3>
     <table>
       <tr><th>Metric</th><th>Formula</th><th>Measures</th></tr>
       <tr><td>RMSE</td><td>√(Σ(r̂ - r)²/n)</td><td>Prediction accuracy (lower = better)</td></tr>
       <tr><td>MAE</td><td>Σ|r̂ - r|/n</td><td>Mean absolute error</td></tr>
-      <tr><td>Precision@K</td><td>Relevant in top-K / K</td><td>How many recommendations are good?</td></tr>
-      <tr><td>Recall@K</td><td>Relevant in top-K / total relevant</td><td>Did we find all good items?</td></tr>
+      <tr><td>Precision@K</td><td>Relevant in top-K / K</td><td>What fraction of top-K are actually good?</td></tr>
+      <tr><td>Recall@K</td><td>Relevant in top-K / total relevant</td><td>Did we surface all good items?</td></tr>
+      <tr><td>Coverage</td><td>Distinct items recommended / total items</td><td>Diversity — avoids always recommending popular items</td></tr>
     </table>
 
     <h3>ALS (Alternating Least Squares) — How it works</h3>

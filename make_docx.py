@@ -432,10 +432,33 @@ table(
     [
         ['One-Hot Encoding', 'Word → binary vector of vocab size; only its position=1', 'Sparse; no semantic similarity'],
         ['Bag of Words',     'Count occurrences of each word; stop words removed',      'Word ORDER is lost; sparse'],
-        ['TF-IDF',           'TF × log(N/DF) — weights by rarity across docs',          'Still no word order'],
+        ['TF-IDF',           'TF × IDF — high score = frequent in ONE doc, rare across docs', 'Still no word order'],
     ],
     [3.5, 7, 4.7]
 )
+
+h2('TF-IDF — Full Formula & Worked Example')
+code('IDF(t,D)       = log( (|D|+1) / (DF(t,D)+1) )    ← +1 = Laplace smoothing\nTF-IDF(t,d,D)  = TF(t,d) x IDF(t,D)\n|D|=total docs, DF(t,D)=docs containing t\n\nExample (|D|=2):  D0="Python python Spark Spark"  D1="Python SQL"\n  TF(python,D0)=2 TF(spark,D0)=2 TF(python,D1)=1 TF(sql,D1)=1\n  DF(python)=2    DF(spark)=1    DF(sql)=1\n  IDF(python)=log(3/3)=0       <- in both docs, not discriminating\n  IDF(spark) =log(3/2)=0.405\n  IDF(sql)   =log(3/2)=0.405\n  TF-IDF(spark,D0)=2x0.405=0.811  <- "spark" is keyword for D0\n  TF-IDF(sql,D1) =1x0.405=0.405   <- "sql"   is keyword for D1')
+
+h2('Spark ML NLP Pipeline')
+table(
+    ['Component', 'What it does', 'Key params'],
+    [
+        ['Tokenizer',          'Split sentence into word tokens',        'inputCol, outputCol'],
+        ['StopWordsRemover',   'Remove high-freq, low-info words',       'inputCol, outputCol'],
+        ['NGram(n=2)',         'Generate bigrams / n-word phrases',      'n=2 for bigrams'],
+        ['CountVectorizer',    'Term frequency sparse vectors',           'minTF, minDF, vocabSize'],
+        ['IDF',                'Apply inverse-doc-freq weighting',       'inputCol="tf"'],
+    ],
+    [4, 5.5, 5.7]
+)
+code('from pyspark.ml import Pipeline\nfrom pyspark.ml.feature import Tokenizer, StopWordsRemover, NGram, CountVectorizer, IDF\n\npipeline = Pipeline(stages=[\n    Tokenizer(inputCol="sentence", outputCol="words"),\n    StopWordsRemover(inputCol="words", outputCol="filtered"),\n    NGram(n=2, inputCol="filtered", outputCol="ngrams"),\n    CountVectorizer(minTF=1.0, minDF=1.0, vocabSize=20,\n                    inputCol="ngrams", outputCol="tf"),\n    IDF(inputCol="tf", outputCol="tfidf")\n])\nmodel = pipeline.fit(data)\nresult = model.transform(data)')
+
+h2('UDFs (User-Defined Functions)')
+code('from pyspark.sql.functions import udf\nfrom pyspark.sql.types import StringType\n\nmy_udf = udf(lambda text: text.upper(), StringType())\ndf.withColumn("upper_text", my_udf(df["text"])).show()')
+
+h2('countByKey() vs countByValue()')
+code('countByKey()   -> count occurrences of each KEY   {"Mazda":2, "Ferrari":1}\ncountByValue() -> count occurrences of each (key,value) PAIR\n\n# Document Frequency pattern:\ntokenized.flatMapValues(lambda x: x)   # one (docID,word) per word\n         .distinct()                    # unique (docID,word) pairs\n         .map(lambda x: (x[1],x[0]))   # flip to (word,docID)\n         .countByKey()                  # how many docs contain each word')
 
 # ─────────────────────────────────────────────────────────────────────────
 pg()
@@ -646,9 +669,47 @@ table(
     [4, 5, 6.2]
 )
 
+h2('Transactions & OLTP vs OLAP')
+code('BEGIN TRANSACTION\n  UPDATE accounts SET balance = balance - 100 WHERE id = "A";\n  UPDATE accounts SET balance = balance + 100 WHERE id = "B";\nCOMMIT      <- makes permanent\n-- or ABORT/ROLLBACK  <- undoes all changes on failure')
+table(
+    ['', 'OLTP', 'OLAP'],
+    [
+        ['Workload',  'Many short read/write transactions (ms)',  'Few complex read-heavy queries over large data'],
+        ['Examples',  'Banking, e-commerce, booking systems',     'Data warehouses, reporting, Spark/Hive'],
+        ['ACID',      'Requires full ACID',                       'Relaxed (eventual consistency acceptable)'],
+    ],
+    [3, 6, 6.2]
+)
+
+h2('Key-Value Store Operations')
+table(
+    ['Op', 'Description'],
+    [
+        ['Get(key)',            'Retrieve value for a single key'],
+        ['Put(key, value)',     'Insert or update a key-value pair'],
+        ['Delete(key)',        'Remove a key-value pair'],
+        ['Multi-get([keys])',  'Batch retrieve multiple values in one call'],
+        ['Multi-put({k:v})',   'Batch insert/update multiple pairs'],
+        ['Range(k1, k2)',      'Retrieve all keys between k1 and k2 (sorted store only)'],
+    ],
+    [4.5, 10.7]
+)
+
 # ─────────────────────────────────────────────────────────────────────────
 pg()
 h1('L10 · Recommendation Systems')
+
+h2('Utility Matrix & Ratings')
+body('Utility matrix: rows=users, columns=items, entries=ratings. Most entries empty (sparsity problem).')
+table(
+    ['Rating type', 'Description', 'Examples'],
+    [
+        ['Explicit', 'User deliberately provides rating',     'Stars 1-5, thumbs up/down, written review'],
+        ['Implicit', 'Inferred from behaviour (no direct rating)', 'Watch time, clicks, purchases, search history'],
+    ],
+    [3, 6.5, 5.7]
+)
+callout('Trade-off:', 'Explicit = accurate but sparse (users rarely rate). Implicit = dense but noisy (watching != liking).', 'DBEAFE')
 
 h2('Two Main Approaches')
 table(
@@ -675,7 +736,7 @@ table(
 )
 
 h2('Similarity Metrics')
-code('Cosine Similarity:\n  sim(u,v) = (u·v) / (||u|| · ||v||)\n  Range [-1,1]; 1=identical direction, 0=orthogonal, -1=opposite\n\nPearson Correlation (mean-centred):\n  sim(u,v) = Σ(r_ui − r̄_u)(r_vi − r̄_v) / (σ_u · σ_v)\n  Adjusts for harsh vs generous raters')
+code('Jaccard Similarity (binary / implicit data):\n  sim(A,B) = |A intersect B| / |A union B|\n  Items rated by BOTH / Items rated by EITHER\n  Range [0,1]; ignores rating VALUES -> good for implicit\n\nCosine Similarity:\n  sim(u,v) = (u.v) / (||u|| * ||v||)\n  Range [-1,1]; 1=identical, 0=orthogonal, -1=opposite\n\nPearson Correlation (mean-centred cosine):\n  sim(u,v) = Sum(r_ui - r_u_bar)(r_vi - r_v_bar) / (sigma_u * sigma_v)\n  Adjusts for harsh vs generous raters')
 
 h2('Matrix Factorization (ALS)')
 code('Decompose ratings matrix R ≈ U · V^T\n  U = (users × k)  latent user matrix\n  V = (items × k)  latent item matrix\n  k = number of latent factors (50–200)\n\nPrediction: r̂_ui = u_i^T · v_j\n\nObjective: minimize Σ(r_ui − u_i^T v_j)² + λ(||U||²+||V||²)\n  optimised with ALS (Alternating Least Squares) or SGD')
@@ -692,14 +753,18 @@ for i, s in enumerate([
 h2('ALS in PySpark (Tutorial 9)')
 code('from pyspark.ml.recommendation import ALS\nfrom pyspark.ml.evaluation import RegressionEvaluator\n\n(training, test) = data.randomSplit([0.8, 0.2], seed=1234)\nals = ALS(maxIter=5, regParam=0.01,\n          userCol="userId", itemCol="movieId", ratingCol="rating")\nmodel = als.fit(training)\npredictions = model.transform(test)\nrmse = RegressionEvaluator(metricName="rmse", labelCol="rating",\n    predictionCol="prediction").evaluate(predictions)\nprint("RMSE:", rmse)')
 
+h2('Baseline Estimate')
+code('b_ui = mu + b_u + b_i\n  mu  = global average rating\n  b_u = user bias (harsh/generous vs average)\n  b_i = item bias (popular/unpopular vs average)\n\nImproved CF prediction: r_hat_ui = b_ui + (CF adjustment from neighbours)')
+
 h2('Evaluation Metrics')
 table(
     ['Metric', 'Formula', 'Measures'],
     [
-        ['RMSE',         '√(Σ(r̂−r)²/n)',              'Prediction accuracy (lower=better)'],
-        ['MAE',          'Σ|r̂−r|/n',                   'Mean absolute error'],
-        ['Precision@K',  'Relevant in top-K / K',        'What fraction of recommendations are good?'],
-        ['Recall@K',     'Relevant in top-K / total rel','Did we find all the good items?'],
+        ['RMSE',         'sqrt(Sum(r_hat-r)^2/n)',     'Prediction accuracy (lower=better)'],
+        ['MAE',          'Sum|r_hat-r|/n',              'Mean absolute error'],
+        ['Precision@K',  'Relevant in top-K / K',       'What fraction of top-K are actually good?'],
+        ['Recall@K',     'Relevant in top-K / total',   'Did we surface all the good items?'],
+        ['Coverage',     'Distinct items rec / total',  'Diversity — avoids always recommending popular items'],
     ],
     [3, 4, 8.2]
 )
@@ -752,6 +817,8 @@ table(
         ['SGNS loss',                    '−[log σ(u_o^T v_c) + Σ_k log σ(−u_k^T v_c)]'],
         ['Levenshtein recurrence',       'dp[i][j] = 1 + min(dp[i−1][j], dp[i][j−1], dp[i−1][j−1])'],
         ['Matrix factorization',         'R ≈ U·V^T;  r̂_ui = u_i^T · v_j'],
+        ['TF-IDF',                       'TF(t,d) x log((|D|+1)/(DF(t,D)+1))'],
+        ['Jaccard similarity',           '|A intersect B| / |A union B|'],
         ['Cosine similarity',            '(u·v) / (||u||·||v||)'],
     ],
     [5.5, 9.7]
@@ -800,6 +867,10 @@ for i, s in enumerate([
     'Levenshtein distance — DP table recurrence',
     'Collaborative vs content-based filtering + ALS steps',
     'ACID vs BASE; strong vs eventual consistency',
+    'TF-IDF formula + worked example (IDF uses log with Laplace smoothing)',
+    'Jaccard vs Cosine vs Pearson — when to use each',
+    'Explicit vs implicit ratings; utility matrix sparsity',
+    'Transactions: BEGIN/COMMIT/ABORT; OLTP vs OLAP',
     'BPE tokenization steps',
     'Porter\'s stemmer 5 phases with example rules',
     'MapReduce 5 steps + word count example',
