@@ -356,6 +356,13 @@ table(
     [3.5, 5.5, 6.2]
 )
 
+h2('HiveQL — Key Commands')
+code('-- Load local file into Hive table\nLOAD DATA LOCAL INPATH \'/home/user/data.csv\' INTO TABLE sales;\n\n-- Load HDFS file into Hive table (moves the file)\nLOAD DATA INPATH \'/hdfs/data/sales.csv\' INTO TABLE sales;\n\n-- Load into a specific partition\nLOAD DATA INPATH \'/hdfs/data/jan.csv\'\nINTO TABLE sales PARTITION (year=2024, month=1);\n\n-- Create partitioned table\nCREATE TABLE logs (user_id STRING, action STRING)\nPARTITIONED BY (dt STRING) STORED AS PARQUET;\n\n-- Query single partition (avoids full scan)\nSELECT * FROM logs WHERE dt = \'2024-01-01\';')
+
+h2('Hive Buckets (Bucketing)')
+body('Partitioning divides data into directories by value. Bucketing further divides each partition into fixed files via hash on a column.')
+code('Bucket assignment:  bucket_id = hash(column_value) % num_buckets\n\nBenefits:\n  - Efficient TABLESAMPLE queries\n  - Faster joins when both tables bucketed on join key (bucket map join)\n  - Avoids data skew vs pure range partitioning\n\nCREATE TABLE orders (order_id INT, customer STRING, amount DOUBLE)\nPARTITIONED BY (year INT)\nCLUSTERED BY (customer) INTO 32 BUCKETS\nSTORED AS ORC;')
+
 h2('Data Lake vs Data Warehouse')
 table(
     ['', 'Data Lake', 'Data Warehouse'],
@@ -408,6 +415,15 @@ for s in ['Sentiment Analysis: classify opinions as positive/negative/neutral',
 
 h2('NLTK Library Overview')
 code('import nltk\nfrom nltk.tokenize import word_tokenize\nfrom nltk.corpus import stopwords\nfrom nltk.stem import PorterStemmer, WordNetLemmatizer\n\ntokens = word_tokenize("I am running fast.")\n# [\'I\',\'am\',\'running\',\'fast\',\'.\']\n\nsw = set(stopwords.words(\'english\'))\nfiltered = [w for w in tokens if w.lower() not in sw]\n\nps = PorterStemmer()\nps.stem(\'computational\')   # \'comput\'\n\nwnl = WordNetLemmatizer()\nwnl.lemmatize(\'better\', pos=\'a\')   # \'good\' (needs POS tag)')
+
+h2('Text Normalisation — Regex Patterns')
+code('import re\n\ndef normalise(text):\n    text = text.lower()\n    text = re.sub(r\'http\\S+|www\\S+\', \'\', text)   # remove URLs\n    text = re.sub(r\'@\\w+\', \'\', text)               # remove @mentions\n    text = re.sub(r\'[^a-z0-9\\s]\', \'\', text)       # alphanumeric only\n    text = re.sub(r\'\\d+\', \'\', text)                # remove numerics\n    tokens = text.split()\n    tokens = [w for w in tokens if len(w) >= 3]    # min length filter\n    return tokens')
+
+h2('Chunking — Noun Phrase Extraction')
+code('import nltk\nfrom nltk import RegexpParser, pos_tag, word_tokenize\n\n# Grammar: optional DT + any JJ + noun\ngrammar = "NP: {<DT>?<JJ>*<NN>}"\nparser  = RegexpParser(grammar)\n\ntokens = word_tokenize("The quick brown fox jumped over the lazy dog")\ntagged = pos_tag(tokens)    # [(\'The\',\'DT\'),(\'quick\',\'JJ\'),(\'fox\',\'NN\'),...]\ntree   = parser.parse(tagged)\n\n# Extract noun phrase chunks\nfor subtree in tree.subtrees():\n    if subtree.label() == \'NP\':\n        print(\' \'.join(w for w,t in subtree.leaves()))')
+
+h2('POS-Tag Filtering (Keep Content Words Only)')
+code('KEEP_TAGS = {\'NN\',\'NNS\',\'NNP\',\'NNPS\',          # nouns\n             \'VB\',\'VBD\',\'VBG\',\'VBN\',\'VBP\',\'VBZ\', # verbs\n             \'JJ\',\'JJR\',\'JJS\'}                   # adjectives\n\ndef pos_filter(text):\n    tokens = word_tokenize(text.lower())\n    tagged = pos_tag(tokens)\n    return [word for word, tag in tagged if tag in KEEP_TAGS]')
 
 h2('Text Preprocessing Pipeline')
 for i, s in enumerate([
@@ -610,6 +626,14 @@ table(
     [2.8, 7, 5.4]
 )
 
+h3('Dead-End Rank Redistribution (detail)')
+bullet('Dead ends cause rank leakage — their accumulated rank is never passed on')
+bullet('Per-iteration fix: leaked = (1 - sum(r_new)) / N; add this back to every page')
+bullet('Google Matrix (1-β)/N term achieves same effect globally for all nodes')
+
+h2('PageRank at Scale')
+code('Web scale (1998):\n  ~1 billion pages\n  Rank vector: one float64 per page → ~8 GB for one copy of r\n  Two copies per iteration (r_old + r_new) → ~16 GB minimum\n\nWhy distributed:\n  Single machine cannot hold rank vector in RAM (1998)\n  Spark/Hadoop: partition adjacency list + rank vector across nodes\n  Only rank contributions (src→dst pairs) cross nodes each iteration')
+
 h2('Google Matrix')
 code('A = β · M  +  (1−β) · [1/N]_{N×N}\nr = A · r\n\nβ ∈ [0.8, 0.9]  — damping factor\n(1−β)           — teleport probability\n\nInterpretation: prob β → follow a link; prob (1−β) → jump to random page')
 
@@ -660,8 +684,18 @@ table(
     [3.5, 6.5, 5.2]
 )
 
+h2('Graph Connectivity — Weakly vs Strongly Connected')
+table(
+    ['Type', 'Definition', 'Example'],
+    [
+        ['Weakly connected',    'Connected if edge directions are ignored (undirected path exists)',    'Most real directed graphs (web, Twitter)'],
+        ['Strongly connected',  'Directed path from EVERY node to EVERY other node',                   'Stricter; web graph is not strongly connected'],
+    ],
+    [3.5, 7, 4.7]
+)
+
 h2('Clustering Coefficient')
-code('C(v) = 2·m_v / (d_v · (d_v − 1))\n\nm_v  = edges between v\'s neighbors\nd_v  = degree of v\nRange [0,1]:  1 = all neighbors connected; 0 = none')
+code('Local (per-node):\n  C(v) = 2·m_v / (d_v · (d_v - 1))\n  m_v = edges between v\'s neighbors\n  d_v = degree of v  (need d_v >= 2)\n  Range [0,1]:  1 = all neighbors connected; 0 = none\n\nGlobal (graph-wide):\n  C_global = (1/N) · Σ_v C(v)   <- average of all local coefficients\n  Measures overall "cliquishness" of the network\n  Small-world networks: high C_global + small average path length')
 
 h2('Centrality Measures')
 table(
@@ -837,21 +871,44 @@ table(
     [4.5, 10.7]
 )
 
+h2('3-Tiered Web Architecture')
+code('Tier 1: Client (browser / mobile app)\n       ↕  HTTP\nTier 2: Application Server (business logic, stateless)\n       ↕  DB queries\nTier 3: Database (persistence layer)\n\nWhy it matters:\n  App servers are stateless → horizontally scalable\n  DB becomes bottleneck at scale → motivates NoSQL + caching\n  NoSQL removes strict ACID so Tier 3 also scales horizontally')
+
+h2('XML vs JSON')
+table(
+    ['', 'XML', 'JSON'],
+    [
+        ['Verbosity', 'Every value needs open+close tags', 'Compact key-value pairs'],
+        ['Parsing',   'Heavier, slower',                    'Native to JavaScript, lighter'],
+        ['Usage',     'Legacy enterprise (SOAP, config)',    'REST APIs, MongoDB, Elasticsearch'],
+        ['Trend',     'Being phased out',                    '"Many apps have replaced XML with JSON"'],
+    ],
+    [3.5, 5.5, 6.2]
+)
+
 # ─────────────────────────────────────────────────────────────────────────
 pg()
 h1('L10 · Recommendation Systems')
 
+h2('Three Key Problems')
+for i, s in enumerate([
+    'Gathering ratings: collecting known user-item data (explicit asks vs implicit inference)',
+    'Estimating unknowns: predicting missing ratings from known ones (core ML problem)',
+    'Evaluation: measuring recommendation quality (RMSE, Precision@K, Coverage)',
+], 1):
+    bullet(f'{i}. {s}')
+
 h2('Utility Matrix & Ratings')
-body('Utility matrix: rows=users, columns=items, entries=ratings. Most entries empty (sparsity problem).')
+body('Utility matrix: m users × n items; R[i,j] = rating. Most entries UNKNOWN (sparsity >99% on Netflix/Amazon).')
 table(
-    ['Rating type', 'Description', 'Examples'],
+    ['Rating type', 'Description', 'Examples', 'Problem'],
     [
-        ['Explicit', 'User deliberately provides rating',     'Stars 1-5, thumbs up/down, written review'],
-        ['Implicit', 'Inferred from behaviour (no direct rating)', 'Watch time, clicks, purchases, search history'],
+        ['Explicit', 'User deliberately provides rating',     'Stars 1-5, thumbs up/down',        'Sparse — users rarely bother'],
+        ['Implicit', 'Inferred from behaviour',               'Watch time, clicks, purchases',     'Cannot infer dislikes (not buying ≠ dislike)'],
     ],
-    [3, 6.5, 5.7]
+    [2.8, 4, 3.5, 4.9]
 )
-callout('Trade-off:', 'Explicit = accurate but sparse (users rarely rate). Implicit = dense but noisy (watching != liking).', 'DBEAFE')
+callout('Implicit feedback asymmetry:', 'Can observe positive signals (bought/clicked). Not buying = dislike OR unseen OR unaffordable. Hard to learn from negatives.', 'FEF3C7')
 
 h2('Two Main Approaches')
 table(
@@ -864,6 +921,8 @@ table(
     ],
     [3.5, 6, 5.7]
 )
+
+callout('CF Key Assumption:', '"If user A has same opinion as user B on item X, A is more likely to agree with B on a different item Y." — Similar past behaviour predicts similar future preferences.', 'DBEAFE')
 
 h2('Collaborative Filtering — User-Based vs Item-Based')
 table(
@@ -879,6 +938,9 @@ table(
 
 h2('Similarity Metrics')
 code('Jaccard Similarity (binary / implicit data):\n  sim(A,B) = |A intersect B| / |A union B|\n  Items rated by BOTH / Items rated by EITHER\n  Range [0,1]; ignores rating VALUES -> good for implicit\n\nCosine Similarity:\n  sim(u,v) = (u.v) / (||u|| * ||v||)\n  Range [-1,1]; 1=identical, 0=orthogonal, -1=opposite\n\nPearson Correlation (mean-centred cosine):\n  sim(u,v) = Sum(r_ui - r_u_bar)(r_vi - r_v_bar) / (sigma_u * sigma_v)\n  Adjusts for harsh vs generous raters')
+
+h2('KNN-Based Collaborative Filtering')
+code('User-based prediction for user u on item i:\n  r_hat_ui = r_bar_u  +  Σ_{v in kNN(u)} sim(u,v)*(r_vi - r_bar_v)\n                         ─────────────────────────────────────────\n                                 Σ_{v in kNN(u)} |sim(u,v)|\n\nr_bar_u = mean rating of user u (normalises harsh/generous raters)\nkNN(u)  = k most similar users (k typically 20-50)\n\nSteps:\n  1. Compute similarity between u and ALL other users\n  2. Pick top-k most similar users\n  3. Weighted average of their ratings for item i\n\nLimitation: O(N) similarity computation per prediction — does not scale to millions of users. ALS is far more scalable.')
 
 h2('Matrix Factorization (ALS)')
 code('Decompose ratings matrix R ≈ U · V^T\n  U = (users × k)  latent user matrix\n  V = (items × k)  latent item matrix\n  k = number of latent factors (50–200)\n\nPrediction: r̂_ui = u_i^T · v_j\n\nObjective: minimize Σ(r_ui − u_i^T v_j)² + λ(||U||²+||V||²)\n  optimised with ALS (Alternating Least Squares) or SGD')
@@ -938,6 +1000,12 @@ code('# Word count\ntextRDD.flatMap(lambda x: x.split())\\\n       .map(lambda x
 
 h2('T04 — Spark SQL / DataFrame')
 code('from pyspark.sql import Row\nfrom pyspark.sql.functions import col, when\n\n# RDD → DataFrame\nrdd.map(lambda x: Row(sequence=x[0], count=x[1])).toDF()\n\n# Read CSV\ndf = ss.read.csv("file.txt", header=True, inferSchema=True)\n\n# Computed columns\ndf = df.withColumn("avg_time", (col("time")+col("timef"))/2)\ndf = df.withColumn("level",\n    when(col("score")<200,"Easy")\n    .when(col("score")<350,"Moderate")\n    .otherwise("Difficult"))\n\n# Aggregate + sort\ndf.groupby("name").avg("speed").sort("avg(speed)", ascending=False).show(5)\n\n# Union (same schema)\ncombined = df1.union(df2)\n\n# TF (term frequency per document)\ntf = tokenized.flatMapValues(lambda x: x).countByValue()\n# DF (document frequency — how many docs contain each term)\ndoc_freq = tokenized.flatMapValues(lambda x: x).distinct()\\\n                    .map(lambda x:(x[1],x[0])).countByKey()')
+
+h2('Tutorial 6 — Keras Word Embedding Layer (CBOW)')
+code('from tensorflow.keras.models import Sequential\nfrom tensorflow.keras.layers import Embedding, Lambda, Dense\nimport tensorflow.keras.backend as K\n\nvocab_size  = 5000   # vocabulary size\nembed_dim   = 100    # embedding dimension (typically 50-300)\nwindow_size = 2      # context window on each side\n\n# CBOW: context words -> mean pool -> predict center word\nmodel = Sequential([\n    Embedding(input_dim=vocab_size, output_dim=embed_dim,\n              input_length=2*window_size),   # 2m context words\n    Lambda(lambda x: K.mean(x, axis=1)),    # mean pooling\n    Dense(vocab_size, activation=\'softmax\') # output: prob over vocab\n])\nmodel.compile(optimizer=\'adam\', loss=\'sparse_categorical_crossentropy\')\n\n# After training: extract embedding weights\nembeddings = model.layers[0].get_weights()[0]  # (vocab_size, embed_dim)')
+
+h2('Tutorial 7 — PageRank (PySpark + NetworkX)')
+code('import networkx as nx\n\n# NetworkX built-in PageRank\nG  = nx.read_edgelist(\'links.txt\', create_using=nx.DiGraph())\npr = nx.pagerank(G, alpha=0.85, max_iter=100, tol=1e-6)\n# alpha=damping factor β; tol=convergence threshold\n\n# PySpark iterative with convergence check\nbeta, N = 0.85, num_nodes\nfor i in range(max_iter):\n    contribs = links.join(ranks).flatMap(\n        lambda u_ls_r: [(dest, u_ls_r[1][1]/len(u_ls_r[1][0]))\n                        for dest in u_ls_r[1][0]])\n    new_ranks = contribs.reduceByKey(lambda a,b: a+b)\\\n                        .mapValues(lambda r: beta*r + (1-beta)/N)\n    # Convergence: ||r_new - r_old||_1 < tol\n    delta = ranks.join(new_ranks).map(lambda x: abs(x[1][1]-x[1][0])).sum()\n    ranks = new_ranks\n    if delta < 1e-6:\n        break')
 
 h2('Tutorial 8 — NetworkX Graph Analytics')
 code('import networkx as nx\n\n# Build graph\nG = nx.Graph()                  # undirected; nx.DiGraph() for directed\nG.add_edge("Alice","Bob")\nG.add_edge("Bob","Carol")\nG.add_edges_from([("Dave","Eve"),("Eve","Frank")])\n\n# Basic properties\nG.number_of_nodes(), G.number_of_edges()\nnx.density(G)                   # 2|E| / (N(N-1))\n\n# Degrees\ndict(G.degree())                # {node: degree}\n\n# Centrality\ncc = nx.closeness_centrality(G)\nhc = nx.harmonic_centrality(G)  # handles disconnected graphs\nbc = nx.betweenness_centrality(G, normalized=True)\nec = nx.eigenvector_centrality(G, max_iter=100)\n\n# Clustering\nnx.clustering(G)                # per-node C(v)\nnx.average_clustering(G)\n\n# Shortest paths\nnx.shortest_path(G, "Alice", "Frank")\nnx.shortest_path_length(G, "Alice", "Frank")\n\n# Famous test graph\nK = nx.karate_club_graph()      # Zachary\'s karate club (34 nodes)\n\n# Girvan-Newman community detection\nfrom networkx.algorithms.community import girvan_newman\ncomp = girvan_newman(G)\ncommunities = tuple(next(comp))')

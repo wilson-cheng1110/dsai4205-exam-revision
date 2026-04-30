@@ -517,6 +517,43 @@ inv_index.collect()
         </ul>
       </div>
     </div>
+
+    <h3>HiveQL — Key Commands</h3>
+    <pre>-- Load local file into Hive table (copies from local FS)
+LOAD DATA LOCAL INPATH '/home/user/data.csv' INTO TABLE sales;
+
+-- Load HDFS file into Hive table (moves from HDFS)
+LOAD DATA INPATH '/hdfs/data/sales.csv' INTO TABLE sales;
+
+-- Load into a PARTITION (date/country sub-directory)
+LOAD DATA INPATH '/hdfs/data/jan.csv'
+INTO TABLE sales PARTITION (year=2024, month=1);
+
+-- Create partitioned table
+CREATE TABLE logs (
+  user_id STRING,
+  action  STRING
+) PARTITIONED BY (dt STRING)
+STORED AS PARQUET;
+
+-- Query a specific partition (avoids full scan)
+SELECT * FROM logs WHERE dt = '2024-01-01';</pre>
+
+    <h3>Hive Buckets (Bucketing)</h3>
+    <p>Partitioning divides data into directories by value. <strong>Bucketing</strong> further divides each partition into a fixed number of files using a hash on a column.</p>
+    <div class="formula">Bucket assignment:  bucket_id = hash(column_value) % num_buckets
+
+Benefits:
+  • Efficient sampling (TABLESAMPLE)
+  • Faster joins when both tables bucketed on join key (bucket map join)
+  • Avoids data skew vs pure range partitioning</div>
+    <pre>CREATE TABLE orders (
+  order_id INT,
+  customer STRING,
+  amount   DOUBLE
+) PARTITIONED BY (year INT)
+CLUSTERED BY (customer) INTO 32 BUCKETS
+STORED AS ORC;</pre>
   </div>
 </div>
 
@@ -590,6 +627,50 @@ ps.stem('computational')   # 'comput'
 # Lemmatization
 wnl = WordNetLemmatizer()
 wnl.lemmatize('better', pos='a')   # 'good'  (needs POS tag)</pre>
+
+    <h3>Text Normalisation — Regex Patterns</h3>
+    <p>Before tokenization, raw text is cleaned with regex substitutions:</p>
+    <pre>import re
+
+def normalise(text):
+    text = text.lower()
+    text = re.sub(r'http\S+|www\S+', '', text)      # remove URLs
+    text = re.sub(r'@\w+', '', text)                  # remove @mentions
+    text = re.sub(r'[^a-z0-9\s]', '', text)          # keep alphanumeric only
+    text = re.sub(r'\d+', '', text)                   # remove numeric characters
+    tokens = text.split()
+    tokens = [w for w in tokens if len(w) >= 3]       # min word length filter
+    return tokens</pre>
+
+    <h3>Chunking — Noun Phrase Extraction</h3>
+    <p>After POS tagging, use <code>RegexpParser</code> to group tokens into meaningful phrases:</p>
+    <pre>import nltk
+from nltk import RegexpParser, pos_tag, word_tokenize
+
+# Grammar: optional determiner + any adjectives + noun
+grammar = "NP: {&lt;DT&gt;?&lt;JJ&gt;*&lt;NN&gt;}"
+parser  = RegexpParser(grammar)
+
+tokens  = word_tokenize("The quick brown fox jumped over the lazy dog")
+tagged  = pos_tag(tokens)          # [('The','DT'),('quick','JJ'),('brown','JJ'),('fox','NN'),...]
+tree    = parser.parse(tagged)     # parse into NP chunks
+tree.draw()                        # visualise tree
+
+# Extract noun phrases
+for subtree in tree.subtrees():
+    if subtree.label() == 'NP':
+        print(' '.join(w for w, t in subtree.leaves()))</pre>
+
+    <h3>POS-Tag Filtering (Keep Content Words Only)</h3>
+    <p>For topic modelling / TF-IDF, keep only nouns, verbs, adjectives — discard function words:</p>
+    <pre>KEEP_TAGS = {'NN','NNS','NNP','NNPS',   # nouns
+             'VB','VBD','VBG','VBN','VBP','VBZ',  # verbs
+             'JJ','JJR','JJS'}              # adjectives
+
+def pos_filter(text):
+    tokens = word_tokenize(text.lower())
+    tagged = pos_tag(tokens)
+    return [word for word, tag in tagged if tag in KEEP_TAGS]</pre>
 
     <h3>Text Preprocessing Pipeline</h3>
     <div class="step"><div class="step-num">1</div><div><strong>Data Cleaning:</strong> Remove HTML markup, punctuation, numbers, special characters.</div></div>
@@ -956,6 +1037,24 @@ PageRank vector r satisfies:  r = M · r  (eigenvector of M with eigenvalue 1)</
       </tr>
     </table>
 
+    <h4>Dead-End Rank Redistribution (detail)</h4>
+    <p>Dead-end pages cause <em>rank leakage</em> — their accumulated rank is never passed on. Two complementary fixes:</p>
+    <ul>
+      <li><strong>Per-iteration re-insertion:</strong> after each r = M·r step, sum leaked rank from dead-end nodes (those contributing 0 to the next vector) and redistribute it equally to all N pages: <code>leaked = (1 − sum(r_new)) / N</code></li>
+      <li><strong>Google Matrix (teleport):</strong> the (1−β)/N term achieves the same effect globally for all nodes, not just dead ends.</li>
+    </ul>
+
+    <h3>PageRank at Scale</h3>
+    <div class="formula">Web scale (1998 reference):
+  ~1 billion pages in the web graph
+  Rank vector stores one float64 per page → ~8 GB for one copy of r
+  Two copies needed per iteration (r_old + r_new) → ~16 GB minimum
+
+Why distributed matters:
+  Single machine cannot hold 16 GB rank vector in 1998 RAM
+  Distributed (Spark/Hadoop): partition adjacency list + rank vector across nodes
+  Communication cost: only rank contributions (src→dst pairs) cross nodes each iteration</div>
+
     <h3>Google Matrix (The Full Formula)</h3>
     <div class="formula">A = β · M  +  (1 − β) · [1/N]_{N×N}
 
@@ -1067,13 +1166,17 @@ After 1 iter: r = M · r = [1/3, 1/6, 1/2]^T
 
     <h3>Clustering Coefficient</h3>
     <p>Measures how tightly a node's neighbors are connected to each other.</p>
-    <div class="formula">C(v) = (2 · m_v) / (d_v · (d_v − 1))
+    <div class="formula">Local (per-node):
+  C(v) = (2 · m_v) / (d_v · (d_v − 1))
 
-m_v  = number of edges between v's neighbors
-d_v  = degree of v
-d_v(d_v-1)/2 = maximum possible edges among neighbors
+  m_v  = number of edges between v's neighbors
+  d_v  = degree of v   (need d_v ≥ 2, else C(v) = 0)
+  Range: [0, 1].  1 = all neighbors connected; 0 = no neighbor connections.
 
-Range: [0, 1].  1 = all neighbors connected; 0 = no neighbor connections.</div>
+Global (graph-wide):
+  C_global = (1/N) · Σ_v C(v)   ← average of all local coefficients
+  Measures overall "cliquishness" of the network.
+  Small-world networks: high C_global + small average path length.</div>
 
     <h3>Centrality Measures</h3>
     <table>
@@ -1182,6 +1285,26 @@ Use: Girvan-Newman community detection removes highest-EB edges iteratively.</di
       <li><strong>Giant component:</strong> the largest connected subgraph — in web/social graphs this contains most nodes.</li>
       <li><strong>BFS (Breadth-First Search)</strong> is used to find connected components and compute shortest paths.</li>
     </ul>
+
+    <h4>Weakly vs Strongly Connected (Directed Graphs)</h4>
+    <div class="grid2">
+      <div class="card">
+        <h4>Weakly Connected</h4>
+        <ul>
+          <li>Connected if all edge directions are <em>ignored</em></li>
+          <li>There is an undirected path between every pair of nodes</li>
+          <li>Easier to achieve — most real directed graphs are weakly connected</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Strongly Connected</h4>
+        <ul>
+          <li>There is a <em>directed</em> path from every node to every other node</li>
+          <li>You can reach any node from any starting point following edge directions</li>
+          <li>Stricter — e.g., web graph is weakly connected but not strongly connected</li>
+        </ul>
+      </div>
+    </div>
     <div class="formula">BFS from source s:
   1. Mark s as visited, add to queue
   2. While queue not empty:
@@ -1370,6 +1493,40 @@ COMMIT              ← makes changes permanent
         </ul>
       </div>
     </div>
+
+    <h3>3-Tiered Web Architecture</h3>
+    <div class="formula">Tier 1: Client (browser / mobile app)
+       ↕  HTTP requests / responses
+Tier 2: Application Server (business logic)
+       ↕  DB queries / ORM
+Tier 3: Database (persistence layer)
+
+Why it matters:
+  • App servers are stateless → horizontally scalable
+  • Multiple app servers can hit the SAME DB
+  • DB becomes the bottleneck at scale → motivates NoSQL / caching</div>
+    <div class="callout info">Distributed databases replace Tier 3. NoSQL removes strict ACID to let Tier 3 also scale horizontally across many nodes.</div>
+
+    <h3>XML vs JSON</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>XML (older)</h4>
+        <ul>
+          <li>Verbose; every value needs open + close tags</li>
+          <li>Heavier to parse and transmit</li>
+          <li>Still used in legacy enterprise systems (SOAP, config files)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>JSON (preferred)</h4>
+        <ul>
+          <li>Compact; native to JavaScript</li>
+          <li>Easier to parse; lighter over the wire</li>
+          <li>"Many apps have phased out XML in favour of JSON"</li>
+          <li>Used by REST APIs, MongoDB, Elasticsearch</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1381,14 +1538,23 @@ COMMIT              ← makes changes permanent
   </div>
   <div class="section-body">
 
+    <h3>Three Key Problems in Recommendation Systems</h3>
+    <div class="step"><div class="step-num">1</div><div><strong>Gathering ratings:</strong> collecting known user-item ratings for the utility matrix (explicit asks vs implicit inference)</div></div>
+    <div class="step"><div class="step-num">2</div><div><strong>Estimating unknowns:</strong> predicting missing ratings from the known ones (the core ML problem)</div></div>
+    <div class="step"><div class="step-num">3</div><div><strong>Evaluation:</strong> measuring how good the recommendations are (RMSE, Precision@K, Coverage…)</div></div>
+
     <h3>Utility Matrix</h3>
     <p>A <strong>utility matrix</strong> (or ratings matrix) has users as rows, items as columns, and entries are ratings. Most entries are empty — this is the <strong>sparsity problem</strong>.</p>
+    <div class="formula">Given m users and n items:
+  R is an m × n matrix where R[i,j] = rating of user i for item j
+  Most entries are UNKNOWN — goal is to estimate them
+  Typical sparsity: &gt;99% of entries are missing (Netflix, Amazon)</div>
     <table>
-      <tr><th>Rating type</th><th>Description</th><th>Examples</th></tr>
-      <tr><td><strong>Explicit</strong></td><td>User deliberately provides a rating</td><td>Stars (1–5), thumbs up/down, written review</td></tr>
-      <tr><td><strong>Implicit</strong></td><td>Inferred from behaviour without direct rating</td><td>Watch time, clicks, purchases, search history</td></tr>
+      <tr><th>Rating type</th><th>Description</th><th>Examples</th><th>Problem</th></tr>
+      <tr><td><strong>Explicit</strong></td><td>User deliberately provides a rating</td><td>Stars (1–5), thumbs up/down, written review</td><td>Sparse — most users don't bother rating</td></tr>
+      <tr><td><strong>Implicit</strong></td><td>Inferred from behaviour without direct rating</td><td>Watch time, clicks, purchases, search history</td><td>Can only infer likes; <strong>cannot infer dislikes</strong> (not buying ≠ dislike)</td></tr>
     </table>
-    <div class="callout info"><strong>Trade-off:</strong> Explicit ratings are accurate but sparse (users rarely rate). Implicit ratings are dense but noisy (watching something ≠ liking it).</div>
+    <div class="callout warning"><strong>Implicit feedback asymmetry:</strong> You can observe that a user bought/clicked something (positive signal). But if they did NOT buy something, you don't know if they dislike it, haven't seen it, or can't afford it. This makes implicit feedback fundamentally harder to learn from.</div>
 
     <h3>Two Main Approaches</h3>
     <div class="grid2">
@@ -1413,6 +1579,8 @@ COMMIT              ← makes changes permanent
       </div>
     </div>
 
+    <div class="callout info"><strong>CF Key Assumption:</strong> "If user A has the same opinion as user B on item X, then A is more likely to have B's opinion on a different item Y." — Users with similar past behaviour will have similar future preferences.</div>
+
     <h3>Collaborative Filtering — Two Variants</h3>
     <table>
       <tr><th></th><th>User-Based CF</th><th>Item-Based CF</th></tr>
@@ -1435,6 +1603,23 @@ Cosine Similarity:
 Pearson Correlation (mean-centered cosine):
   sim(u, v) = Σ(r_ui - r̄_u)(r_vi - r̄_v) / (σ_u · σ_v)
   Adjusts for different user rating scales (harsh vs generous raters).</div>
+
+    <h3>KNN-Based Collaborative Filtering</h3>
+    <p>The simplest CF approach: find the <em>k</em> most similar users (or items) and use their ratings to predict.</p>
+    <div class="formula">User-based prediction for user u on item i:
+  r̂_ui = r̄_u  +  Σ_{v ∈ kNN(u)} sim(u,v) · (r_vi − r̄_v)
+                  ─────────────────────────────────────────
+                            Σ_{v ∈ kNN(u)} |sim(u,v)|
+
+r̄_u = mean rating of user u  (normalises for harsh/generous raters)
+kNN(u) = k nearest neighbours of u by similarity metric
+sim(u,v) = cosine, Pearson, or Jaccard similarity
+
+Steps:
+  1. Compute similarity between target user u and ALL other users
+  2. Pick top-k most similar users (k typically 20–50)
+  3. Weighted average of their ratings for item i</div>
+    <div class="callout warning"><strong>KNN limitation:</strong> O(N) similarity computation per prediction — does not scale to millions of users. Matrix factorization (ALS) is far more scalable.</div>
 
     <h3>Matrix Factorization (Latent Factor Model)</h3>
     <p>Decompose ratings matrix R (users × items) into two lower-rank matrices:</p>
@@ -1696,6 +1881,59 @@ from networkx.algorithms.community import girvan_newman
 comp = girvan_newman(G)
 communities = tuple(next(comp))
 print(communities)</pre>
+
+    <h3>Tutorial 6 — Keras Word Embedding Layer</h3>
+    <pre>from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, Lambda, Dense, Flatten
+import tensorflow.keras.backend as K
+
+vocab_size  = 5000   # vocabulary size
+embed_dim   = 100    # embedding dimension (typically 50–300)
+window_size = 2      # context window on each side
+
+# CBOW architecture: context words → mean pool → predict center word
+model = Sequential([
+    Embedding(input_dim=vocab_size, output_dim=embed_dim,
+              input_length=2*window_size),   # 2m context words
+    Lambda(lambda x: K.mean(x, axis=1)),    # mean pooling over context
+    Dense(vocab_size, activation='softmax') # output: prob over vocab
+])
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy')
+
+# After training: extract embedding weights
+embeddings = model.layers[0].get_weights()[0]  # shape (vocab_size, embed_dim)</pre>
+
+    <h3>Tutorial 7 — PageRank (PySpark + NetworkX)</h3>
+    <pre>import networkx as nx
+
+# NetworkX built-in PageRank
+G = nx.read_edgelist('links.txt', create_using=nx.DiGraph())
+pr = nx.pagerank(G, alpha=0.85, max_iter=100, tol=1e-6)
+# alpha = damping factor β; tol = convergence threshold
+
+# Manual power iteration convergence check
+import numpy as np
+
+def pagerank_converged(r_old, r_new, tol=1e-6):
+    return np.linalg.norm(np.array(r_new) - np.array(r_old), ord=1) < tol
+
+# PySpark iterative PageRank with convergence
+beta, N = 0.85, num_nodes
+ranks = links.map(lambda url_neighbors: (url_neighbors[0], 1.0/N))
+for i in range(max_iter):
+    contribs = links.join(ranks).flatMap(
+        lambda url_urls_rank: [
+            (dest, url_urls_rank[1][1] / len(url_urls_rank[1][0]))
+            for dest in url_urls_rank[1][0]
+        ]
+    )
+    new_ranks = contribs.reduceByKey(lambda a,b: a+b) \
+                        .mapValues(lambda r: beta*r + (1-beta)/N)
+    # Check convergence: ||r_new - r_old||_1 < tol
+    delta = ranks.join(new_ranks).map(lambda x: abs(x[1][1]-x[1][0])).sum()
+    ranks = new_ranks
+    if delta < 1e-6:
+        break</pre>
 
     <h3>Spark — flatMap vs map (key difference)</h3>
     <div class="grid2">
