@@ -5,155 +5,468 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DSAI4205 Exam Review</title>
 <style>
-  :root {
-    --accent: #2563eb;
-    --accent2: #7c3aed;
-    --bg: #f8fafc;
-    --card: #ffffff;
-    --border: #e2e8f0;
-    --text: #1e293b;
-    --muted: #64748b;
-    --warn: #f59e0b;
-    --success: #10b981;
-    --danger: #ef4444;
+/* ── CSS Variables ── */
+:root {
+  --accent:   #2563eb;
+  --accent2:  #7c3aed;
+  --bg:       #f0f4f8;
+  --card:     #ffffff;
+  --border:   #e2e8f0;
+  --text:     #1e293b;
+  --muted:    #64748b;
+  --warn:     #f59e0b;
+  --success:  #10b981;
+  --danger:   #ef4444;
+  --sidebar-w: 240px;
+  --topbar-h:  56px;
+  --formula-bg:     #0f172a;
+  --formula-border: #06b6d4;
+  --code-bg:        #1e293b;
+  --code-border:    #7c3aed;
+  --radius: 10px;
+  --transition: 0.22s ease;
+}
+[data-theme=dark] {
+  --bg:    #0f172a;
+  --card:  #1e293b;
+  --border: #334155;
+  --text:  #e2e8f0;
+  --muted: #94a3b8;
+  --formula-bg: #020617;
+  --code-bg:    #020617;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text);
+  line-height: 1.65; font-size: 15px;
+  transition: background var(--transition), color var(--transition);
+}
+
+/* ── Top bar ── */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+  background: var(--card); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  z-index: 200; box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  transition: background var(--transition), border-color var(--transition);
+}
+.brand { font-weight: 800; font-size: 1em; white-space: nowrap; color: var(--accent); flex-shrink: 0; }
+.brand span { color: var(--muted); font-weight: 400; font-size: 0.85em; }
+.search-wrap { flex: 1; min-width: 0; position: relative; max-width: 420px; }
+#search-input {
+  width: 100%; padding: 7px 32px 7px 12px;
+  border: 1.5px solid var(--border); border-radius: 20px;
+  background: var(--bg); color: var(--text); font-size: 0.88em;
+  outline: none; transition: border-color 0.15s, background var(--transition);
+}
+#search-input:focus { border-color: var(--accent); }
+.search-clear {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  cursor: pointer; color: var(--muted); font-size: 0.85em; display: none; line-height: 1;
+}
+.topbar-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.topbar-actions button, .icon-btn {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  padding: 5px 10px; font-size: 0.8em; cursor: pointer; color: var(--text);
+  transition: background 0.15s, border-color 0.15s; white-space: nowrap;
+}
+.topbar-actions button:hover, .icon-btn:hover {
+  background: #dbeafe; border-color: var(--accent); color: var(--accent);
+}
+[data-theme=dark] .topbar-actions button:hover,
+[data-theme=dark] .icon-btn:hover { background: #1e3a5f; }
+#overall-counter { font-size: 0.82em; color: var(--muted); white-space: nowrap; padding: 0 4px; }
+#theme-toggle { font-size: 1.1em; padding: 5px 8px; }
+
+/* ── Layout ── */
+#layout { display: flex; padding-top: var(--topbar-h); min-height: calc(100vh - var(--topbar-h)); }
+
+/* ── Sidebar ── */
+#sidebar {
+  width: var(--sidebar-w); flex-shrink: 0;
+  position: sticky; top: var(--topbar-h); height: calc(100vh - var(--topbar-h));
+  overflow-y: auto; overflow-x: hidden;
+  background: var(--card); border-right: 1px solid var(--border); padding-bottom: 20px;
+  transition: background var(--transition), border-color var(--transition);
+}
+.sidebar-header {
+  padding: 14px 16px 10px; font-weight: 700; font-size: 0.82em;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); border-bottom: 1px solid var(--border);
+}
+.sidebar-nav { padding: 6px 0; }
+.sn-item {
+  display: block; padding: 8px 14px 6px; text-decoration: none; color: var(--text);
+  border-left: 3px solid transparent; transition: background 0.12s, border-color 0.12s; cursor: pointer;
+}
+.sn-item:hover { background: #eff6ff; border-left-color: var(--accent); }
+.sn-item.active { background: #eff6ff; border-left-color: var(--accent); font-weight: 600; }
+[data-theme=dark] .sn-item:hover,
+[data-theme=dark] .sn-item.active { background: #1e3a5f; }
+.sn-label { font-size: 0.79em; font-weight: 600; display: block; line-height: 1.3; padding-right: 4px; }
+.sn-count { font-size: 0.71em; color: var(--muted); float: right; margin-top: 1px; flex-shrink: 0; }
+.sn-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 5px; clear: both; }
+.sn-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; }
+
+/* ── Sidebar collapse (desktop) ── */
+#sidebar.hidden {
+  width: 0; overflow: hidden; border-right: none;
+  transition: width 0.3s ease, background var(--transition);
+}
+#main { flex: 1; min-width: 0; padding: 24px 28px; transition: all 0.3s ease; }
+
+/* ── Section card ── */
+.section-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 22px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: background var(--transition), border-color var(--transition);
+}
+.section-hdr {
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+  color: white; padding: 13px 18px; display: flex; align-items: center; gap: 10px;
+  cursor: pointer; user-select: none;
+}
+.section-hdr:hover { filter: brightness(1.06); }
+.section-num {
+  background: rgba(255,255,255,0.25); border-radius: 50%; width: 30px; height: 30px; min-width: 30px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.88em; flex-shrink: 0;
+}
+.section-title { font-size: 1.02em; font-weight: 700; flex: 1; }
+.section-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.section-pct { font-size: 0.82em; opacity: 0.85; }
+.section-chevron { font-size: 0.9em; transition: transform 0.22s ease; display: inline-block; }
+.section-chevron.collapsed { transform: rotate(-90deg); }
+
+.section-body {
+  padding: 18px 20px; overflow: hidden;
+  max-height: 99999px;
+  transition: max-height 0.4s ease, padding 0.4s ease, opacity 0.3s ease;
+  opacity: 1;
+}
+.section-body.collapsed {
+  max-height: 0 !important; padding-top: 0; padding-bottom: 0; opacity: 0;
+}
+
+/* ── Subsection ── */
+.subsection {
+  border-top: 1px solid var(--border); border-left: 4px solid var(--accent);
+  margin: 10px -20px; padding: 0 20px;
+  transition: border-color 0.2s;
+}
+.subsection:first-child { border-top: none; margin-top: -8px; }
+.subsection.done { border-left-color: var(--success) !important; }
+.subsection.done .sub-title { color: var(--success); }
+.sub-header {
+  display: flex; align-items: center; gap: 8px; padding: 10px 0 8px;
+  cursor: pointer; user-select: none;
+}
+.sub-header:hover {
+  background: rgba(37,99,235,0.04);
+  margin: 0 -20px; padding-left: 20px; padding-right: 20px;
+}
+[data-theme=dark] .sub-header:hover { background: rgba(37,99,235,0.08); }
+
+/* Checkbox */
+.cb-wrap { flex-shrink: 0; display: flex; align-items: center; }
+.cb-wrap input[type=checkbox] { display: none; }
+.cb-box {
+  width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 4px;
+  display: block; flex-shrink: 0; transition: background 0.15s, border-color 0.15s;
+  position: relative; cursor: pointer;
+}
+.cb-wrap input:checked + .cb-box {
+  background: var(--success); border-color: var(--success);
+}
+.cb-wrap input:checked + .cb-box::after {
+  content: "✓"; position: absolute; top: -1px; left: 2px;
+  color: white; font-size: 12px; font-weight: 700;
+}
+.sub-title { flex: 1; font-weight: 700; font-size: 0.95em; color: var(--accent); }
+.subsection.done .sub-title { color: var(--success); }
+.sub-chevron { color: var(--muted); font-size: 0.8em; transition: transform 0.22s ease; flex-shrink: 0; display: inline-block; }
+.sub-chevron.collapsed { transform: rotate(-90deg); }
+
+.sub-body {
+  overflow: hidden; max-height: 99999px; padding-bottom: 14px;
+  transition: max-height 0.32s ease, padding 0.32s ease, opacity 0.25s ease;
+  opacity: 1;
+}
+.sub-body.collapsed { max-height: 0 !important; padding-bottom: 0; opacity: 0; }
+
+/* ── Content elements (verbatim preservation) ── */
+h3 {
+  color: var(--accent); font-size: 1em; font-weight: 700;
+  margin: 14px 0 8px; border-left: 3px solid var(--accent); padding-left: 10px;
+}
+/* Inside subsections, h3 is hidden — title shown by sub-header */
+.sub-body h3 { display: none; }
+
+h4 { color: var(--accent2); font-size: 0.92em; font-weight: 700; margin: 14px 0 6px; }
+p, li { margin-bottom: 6px; }
+ul, ol { padding-left: 22px; }
+li { margin-bottom: 4px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.88em; }
+th {
+  background: #eff6ff; color: var(--accent); font-weight: 700;
+  padding: 9px 12px; text-align: left; border: 1px solid var(--border);
+}
+[data-theme=dark] th { background: #1e3a5f; color: #93c5fd; }
+td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+tr:nth-child(even) td { background: rgba(241,245,249,0.7); }
+[data-theme=dark] tr:nth-child(even) td { background: rgba(255,255,255,0.04); }
+
+/* Formula blocks — dark bg, cyan border, clearly distinct from pre */
+.formula {
+  background: var(--formula-bg); color: #a5f3fc;
+  font-family: 'Courier New', monospace;
+  border-radius: 8px; padding: 14px 18px; margin: 10px 0; font-size: 0.88em;
+  overflow-x: auto; border-left: 4px solid var(--formula-border);
+  white-space: pre-wrap; word-break: break-word; position: relative;
+}
+
+/* Code / pre blocks — dark bg, purple border */
+pre {
+  background: var(--code-bg); color: #e2e8f0;
+  border-radius: 8px; padding: 14px 18px; margin: 10px 0; font-size: 0.82em;
+  overflow-x: auto; border-left: 4px solid var(--code-border);
+  font-family: 'Courier New', monospace; white-space: pre;
+}
+code {
+  background: rgba(100,116,139,0.15); border-radius: 4px; padding: 2px 6px;
+  font-size: 0.88em; font-family: 'Courier New', monospace; color: var(--accent2);
+}
+pre code { background: none; color: inherit; padding: 0; font-size: 1em; }
+
+/* Callouts with emoji prefixes */
+.callout {
+  border-radius: 8px; padding: 12px 16px; margin: 12px 0;
+  border-left: 4px solid; font-size: 0.9em;
+}
+.callout.warning { background: #fffbeb; border-color: var(--warn); color: #92400e; }
+.callout.info    { background: #eff6ff; border-color: var(--accent); color: #1e40af; }
+.callout.tip     { background: #ecfdf5; border-color: var(--success); color: #065f46; }
+.callout.danger  { background: #fef2f2; border-color: var(--danger); color: #991b1b; }
+.callout.warning::before { content: "⚠️\00a0 "; font-size: 1em; }
+.callout.info::before    { content: "ℹ️\00a0 "; font-size: 1em; }
+.callout.tip::before     { content: "✅\00a0 "; font-size: 1em; }
+.callout.danger::before  { content: "🚨\00a0 "; font-size: 1em; }
+.callout strong { font-weight: 700; }
+[data-theme=dark] .callout.warning { background: #2d1f00; color: #fcd34d; }
+[data-theme=dark] .callout.info    { background: #0f2040; color: #93c5fd; }
+[data-theme=dark] .callout.tip     { background: #042f1e; color: #6ee7b7; }
+[data-theme=dark] .callout.danger  { background: #2d0f0f; color: #fca5a5; }
+
+/* Grid and card */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
+@media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+.card {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
+  transition: background var(--transition);
+}
+.card h4 { margin-top: 0; color: var(--accent2); }
+
+/* Tags */
+.tag {
+  display: inline-block; font-size: 0.75em; font-weight: 700;
+  padding: 2px 8px; border-radius: 10px; margin: 2px;
+}
+.tag.blue   { background: #dbeafe; color: #1d4ed8; }
+.tag.purple { background: #ede9fe; color: #6d28d9; }
+.tag.green  { background: #d1fae5; color: #065f46; }
+.tag.orange { background: #fed7aa; color: #c2410c; }
+.tag.red    { background: #fee2e2; color: #b91c1c; }
+[data-theme=dark] .tag.blue   { background: #1e3a5f; color: #93c5fd; }
+[data-theme=dark] .tag.purple { background: #2d1b5e; color: #c4b5fd; }
+[data-theme=dark] .tag.green  { background: #042f1e; color: #6ee7b7; }
+[data-theme=dark] .tag.orange { background: #3d1a00; color: #fdba74; }
+[data-theme=dark] .tag.red    { background: #2d0f0f; color: #fca5a5; }
+
+/* Steps */
+.step { display: flex; gap: 12px; margin: 8px 0; }
+.step .step-num {
+  background: var(--accent); color: white; border-radius: 50%;
+  width: 24px; height: 24px; min-width: 24px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8em; font-weight: 700; margin-top: 2px;
+}
+
+/* TOC (inside summary section) */
+.toc { columns: 2; gap: 20px; }
+.toc a { color: var(--text); text-decoration: none; font-size: 0.92em; display: block; padding: 3px 0; border-bottom: 1px dotted var(--border); }
+.toc a:hover { color: var(--accent); }
+
+/* Search highlight */
+mark.srch { background: #fef08a; color: #1e293b; border-radius: 2px; padding: 0 2px; }
+[data-theme=dark] mark.srch { background: #854d0e; color: #fef3c7; }
+
+/* No-results */
+#no-results {
+  text-align: center; padding: 40px; color: var(--muted); font-size: 0.95em; display: none;
+}
+
+/* Sidebar overlay (mobile) */
+#sidebar-overlay {
+  display: none; position: fixed; inset: 0; top: var(--topbar-h);
+  background: rgba(0,0,0,0.45); z-index: 140;
+}
+#sidebar-overlay.visible { display: block; }
+
+/* Mobile */
+@media (max-width: 768px) {
+  #sidebar {
+    position: fixed; top: var(--topbar-h); left: 0;
+    height: calc(100vh - var(--topbar-h)); z-index: 150;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease, background var(--transition);
+    box-shadow: 4px 0 16px rgba(0,0,0,0.15);
+    width: 260px !important;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg); color: var(--text);
-    line-height: 1.65; font-size: 15px;
-  }
-  .cover {
-    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #7c3aed 100%);
-    color: white; padding: 60px 40px; text-align: center;
-  }
-  .cover h1 { font-size: 2.6em; font-weight: 800; letter-spacing: -0.5px; }
-  .cover p { opacity: 0.85; font-size: 1.1em; margin-top: 10px; }
-  .cover .meta { margin-top: 20px; display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
-  .cover .badge {
-    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 20px; padding: 6px 16px; font-size: 0.9em;
-  }
-  nav {
-    background: var(--card); border-bottom: 1px solid var(--border);
-    padding: 14px 40px; position: sticky; top: 0; z-index: 100;
-    display: flex; gap: 8px; flex-wrap: wrap;
-  }
-  nav a {
-    color: var(--accent); text-decoration: none; font-size: 0.82em; font-weight: 600;
-    padding: 4px 10px; border-radius: 6px; border: 1px solid transparent;
-    transition: all 0.15s;
-  }
-  nav a:hover { background: #eff6ff; border-color: var(--accent); }
-  pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 14px 18px; margin: 10px 0; font-size: 0.82em; overflow-x: auto; border-left: 4px solid #7c3aed; font-family: 'Courier New', monospace; white-space: pre; }
-  .container { max-width: 980px; margin: 0 auto; padding: 30px 24px; }
-  .section {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; margin-bottom: 28px; overflow: hidden;
-  }
-  .section-header {
-    background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
-    color: white; padding: 14px 22px; display: flex; align-items: center; gap: 10px;
-  }
-  .section-header .num {
-    background: rgba(255,255,255,0.25); border-radius: 50%; width: 30px; height: 30px;
-    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.9em;
-  }
-  .section-header h2 { font-size: 1.1em; font-weight: 700; }
-  .section-body { padding: 20px 22px; }
-  h3 { color: var(--accent); font-size: 1em; font-weight: 700; margin: 18px 0 8px; border-left: 3px solid var(--accent); padding-left: 10px; }
-  h4 { color: var(--accent2); font-size: 0.92em; font-weight: 700; margin: 14px 0 6px; }
-  p, li { margin-bottom: 6px; }
-  ul, ol { padding-left: 22px; }
-  li { margin-bottom: 4px; }
-  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.88em; }
-  th { background: #eff6ff; color: var(--accent); font-weight: 700; padding: 9px 12px; text-align: left; border: 1px solid var(--border); }
-  td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
-  tr:nth-child(even) td { background: #f8fafc; }
-  .formula {
-    background: #1e293b; color: #e2e8f0; font-family: 'Courier New', monospace;
-    border-radius: 8px; padding: 14px 18px; margin: 10px 0; font-size: 0.9em;
-    overflow-x: auto; border-left: 4px solid var(--accent);
-  }
-  .callout {
-    border-radius: 8px; padding: 12px 16px; margin: 12px 0;
-    border-left: 4px solid; font-size: 0.9em;
-  }
-  .callout.warning { background: #fffbeb; border-color: var(--warn); color: #92400e; }
-  .callout.info { background: #eff6ff; border-color: var(--accent); color: #1e40af; }
-  .callout.tip { background: #ecfdf5; border-color: var(--success); color: #065f46; }
-  .callout.danger { background: #fef2f2; border-color: var(--danger); color: #991b1b; }
-  .callout strong { font-weight: 700; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
-  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
-  .card {
-    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
-  }
-  .card h4 { margin-top: 0; color: var(--accent2); }
-  .tag {
-    display: inline-block; font-size: 0.75em; font-weight: 700; padding: 2px 8px;
-    border-radius: 10px; margin: 2px;
-  }
-  .tag.blue { background: #dbeafe; color: #1d4ed8; }
-  .tag.purple { background: #ede9fe; color: #6d28d9; }
-  .tag.green { background: #d1fae5; color: #065f46; }
-  .tag.orange { background: #fed7aa; color: #c2410c; }
-  .tag.red { background: #fee2e2; color: #b91c1c; }
-  code { background: #f1f5f9; border-radius: 4px; padding: 2px 6px; font-size: 0.88em; font-family: 'Courier New', monospace; }
-  .step { display: flex; gap: 12px; margin: 8px 0; }
-  .step .step-num {
-    background: var(--accent); color: white; border-radius: 50%;
-    width: 24px; height: 24px; min-width: 24px; display: flex; align-items: center;
-    justify-content: center; font-size: 0.8em; font-weight: 700; margin-top: 2px;
-  }
-  .toc { columns: 2; gap: 20px; }
-  .toc a { color: var(--text); text-decoration: none; font-size: 0.92em; display: block; padding: 3px 0; border-bottom: 1px dotted var(--border); }
-  .toc a:hover { color: var(--accent); }
-  @media print {
-    nav, .cover .meta { display: none; }
-    body { font-size: 13px; }
-    .section { page-break-inside: avoid; }
-  }
+  #sidebar.open { transform: translateX(0); }
+  #sidebar.hidden { width: 260px !important; transform: translateX(-100%) !important; }
+  #main { padding: 16px !important; }
+  .brand span { display: none; }
+  #overall-counter { display: none; }
+}
+
+/* Print */
+@media print {
+  .topbar, #sidebar, #sidebar-overlay { display: none !important; }
+  #main { padding: 0; max-width: 100%; }
+  #layout { display: block; padding-top: 0; }
+  .section-body.collapsed,
+  .sub-body.collapsed { max-height: 99999px !important; padding: 10px 0 !important; opacity: 1 !important; }
+  .section-chevron, .sub-chevron, .cb-wrap { display: none; }
+  body { font-size: 12px; background: white; color: black; }
+  .subsection { border-left: 2px solid #ccc !important; page-break-inside: avoid; }
+  .section-card { page-break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+  .section-hdr { background: #1e3a5f !important; }
+}
 </style>
 </head>
 <body>
 
-<div class="cover">
-  <h1>DSAI4205 Exam Review</h1>
-  <p>Big Data Analytics — Complete Revision Notes</p>
-  <div class="meta">
-    <span class="badge">PolyU · Dr. Ken Fong</span>
-    <span class="badge">Lectures 1–10</span>
-    <span class="badge">Exam = 40% of Grade</span>
-    <span class="badge">Format: MCQ + Long Questions</span>
+<!-- ── Top bar ── -->
+<header class="topbar">
+  <button id="sidebar-toggle" class="icon-btn" onclick="toggleSidebar()" title="Toggle sidebar">☰</button>
+  <div class="brand">DSAI4205 <span>Big Data Analytics</span></div>
+  <div class="search-wrap">
+    <input id="search-input" placeholder="Search topics, formulas, code…" autocomplete="off">
+    <span id="search-clear" class="search-clear" onclick="clearSearch()">✕</span>
   </div>
-</div>
-
-<nav>
-  <a href="#l1">L1 Intro</a>
-  <a href="#l2">L2 Parallelism</a>
-  <a href="#l3">L3 Spark</a>
-  <a href="#l4">L4 SparkSQL</a>
-  <a href="#l5">L5 NLP</a>
-  <a href="#l6">L6 LLM</a>
-  <a href="#l7">L7 PageRank</a>
-  <a href="#l8">L8 Graph</a>
-  <a href="#l9">L9 NoSQL</a>
-  <a href="#l10">L10 RecSys</a>
-  <a href="#code">Code Reference</a>
-  <a href="#summary">Quick Summary</a>
-</nav>
-
-<div class="container">
-
-<!-- ============================================================ L1 ============================================================ -->
-<div class="section" id="l1">
-  <div class="section-header">
-    <div class="num">1</div>
-    <h2>Introduction to Big Data Analytics</h2>
+  <div class="topbar-actions">
+    <button onclick="expandAll()" title="Expand all">⊞ All</button>
+    <button onclick="collapseAll()" title="Collapse all">⊟ All</button>
+    <span id="overall-counter">0 / 0 done</span>
+    <button id="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">🌙</button>
   </div>
-  <div class="section-body">
+</header>
 
+<!-- Mobile sidebar overlay -->
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- ── Layout ── -->
+<div id="layout">
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-header">Topics</div>
+    <nav class="sidebar-nav">
+    <a class="sn-item" href="#l1" onclick="scrollToSection('l1');return false;">
+      <span class="sn-label">L1 · Introduction to Big Data Analytics</span>
+      <span class="sn-count" id="cnt-l1">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-l1" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#l2" onclick="scrollToSection('l2');return false;">
+      <span class="sn-label">L2 · The Path to Parallelism</span>
+      <span class="sn-count" id="cnt-l2">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-l2" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#l3" onclick="scrollToSection('l3');return false;">
+      <span class="sn-label">L3 · Apache Spark</span>
+      <span class="sn-count" id="cnt-l3">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-l3" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#l4" onclick="scrollToSection('l4');return false;">
+      <span class="sn-label">L4 · Hive, Shark &amp; SparkSQL</span>
+      <span class="sn-count" id="cnt-l4">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-l4" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#l5" onclick="scrollToSection('l5');return false;">
+      <span class="sn-label">L5 · Intro to Natural Language Processing (NLP)</span>
+      <span class="sn-count" id="cnt-l5">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-l5" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#l6" onclick="scrollToSection('l6');return false;">
+      <span class="sn-label">L6 · Large Language Models &amp; Word Embeddings</span>
+      <span class="sn-count" id="cnt-l6">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-l6" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#l7" onclick="scrollToSection('l7');return false;">
+      <span class="sn-label">L7 · Link Analysis — PageRank</span>
+      <span class="sn-count" id="cnt-l7">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-l7" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#l8" onclick="scrollToSection('l8');return false;">
+      <span class="sn-label">L8 · Graph Analytics</span>
+      <span class="sn-count" id="cnt-l8">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-l8" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#l9" onclick="scrollToSection('l9');return false;">
+      <span class="sn-label">L9 · Big Data Storage &amp; NoSQL</span>
+      <span class="sn-count" id="cnt-l9">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-l9" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#l10" onclick="scrollToSection('l10');return false;">
+      <span class="sn-label">L10 · Recommendation Systems</span>
+      <span class="sn-count" id="cnt-l10">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-l10" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#code" onclick="scrollToSection('code');return false;">
+      <span class="sn-label">Tutorial Code Reference (T01–T04 &amp; Notebooks)</span>
+      <span class="sn-count" id="cnt-code">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-code" style="width:0%"></div></div>
+    </a>
+    <a class="sn-item" href="#summary" onclick="scrollToSection('summary');return false;">
+      <span class="sn-label">Quick Reference Summary</span>
+      <span class="sn-count" id="cnt-summary">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-summary" style="width:0%"></div></div>
+    </a>
+    </nav>
+  </aside>
+
+  <!-- Main content -->
+  <main id="main">
+
+    <!-- Cover -->
+    <div class="section-card" style="margin-bottom:22px;overflow:visible;">
+      <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 50%,#7c3aed 100%);color:white;padding:40px 28px;border-radius:10px 10px 0 0;text-align:center;">
+        <div style="font-size:2em;font-weight:800;letter-spacing:-0.5px;">DSAI4205 Exam Review</div>
+        <div style="opacity:0.85;font-size:1em;margin-top:8px;">Big Data Analytics — Complete Revision Notes</div>
+        <div style="margin-top:16px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:5px 14px;font-size:0.88em;">PolyU · Dr. Ken Fong</span>
+          <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:5px 14px;font-size:0.88em;">Lectures 1–10</span>
+          <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:5px 14px;font-size:0.88em;">Exam = 40% of Grade</span>
+          <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:5px 14px;font-size:0.88em;">Format: MCQ + Long Questions</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section cards -->
+  <div class="section-card" id="l1" data-section="l1">
+    <div class="section-hdr" onclick="toggleSection('l1')">
+      <div class="section-num">1</div>
+      <div class="section-title">Introduction to Big Data Analytics</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-l1">0%</span>
+        <span class="section-chevron" id="chev-l1">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-l1">
     <h3>The 6 V's of Big Data</h3>
     <table>
       <tr><th>V</th><th>Definition</th><th>Example</th></tr>
@@ -198,10 +511,6 @@
     </table>
 
     <div class="callout tip"><strong>Exam tip:</strong> Netflix case study uses all 4 Vs (Volume, Velocity, Variety, Veracity). Be ready to map each V to a specific challenge and solution.</div>
-  </div>
-</div>
-
-
     <h3>AI History — Key Dates</h3>
     <table>
       <tr><th>Event</th><th>Date / Detail</th></tr>
@@ -222,14 +531,19 @@
       <tr><td>Variety</td><td>Structured ratings + unstructured subtitles/thumbnails + semi-structured clicklogs</td><td>SparkSQL + data lakes for schema-on-read</td></tr>
       <tr><td>Veracity</td><td>Noisy implicit signals (play ≠ enjoyed); A/B test integrity</td><td>Anomaly detection, data validation, ML quality checks</td></tr>
     </table>
-<!-- ============================================================ L2 ============================================================ -->
-<div class="section" id="l2">
-  <div class="section-header">
-    <div class="num">2</div>
-    <h2>The Path to Parallelism</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="l2" data-section="l2">
+    <div class="section-hdr" onclick="toggleSection('l2')">
+      <div class="section-num">2</div>
+      <div class="section-title">The Path to Parallelism</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-l2">0%</span>
+        <span class="section-chevron" id="chev-l2">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-l2">
     <h3>Scale Up vs Scale Out</h3>
     <table>
       <tr><th></th><th>Scale Up (Vertical)</th><th>Scale Out (Horizontal)</th></tr>
@@ -387,10 +701,6 @@ arr.to_zarr('my_array.zarr')
 
 # Load back
 arr2 = da.from_zarr('my_array.zarr')</pre>
-  </div>
-</div>
-
-
     <h3>Dask — Eager vs Lazy Execution</h3>
     <table>
       <tr><th></th><th>dask.delayed</th><th>dask.futures (distributed.client.submit)</th></tr>
@@ -486,14 +796,19 @@ halo_arr = da.overlap.overlap(arr, depth=1, boundary=0)
 # Zarr storage: chunk size matters for I/O performance
 # large chunks -> fewer reads, better for sequential access
 # small chunks -> many small reads, slow for large arrays</pre>
-<!-- ============================================================ L3 ============================================================ -->
-<div class="section" id="l3">
-  <div class="section-header">
-    <div class="num">3</div>
-    <h2>Apache Spark</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="l3" data-section="l3">
+    <div class="section-hdr" onclick="toggleSection('l3')">
+      <div class="section-num">3</div>
+      <div class="section-title">Apache Spark</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-l3">0%</span>
+        <span class="section-chevron" id="chev-l3">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-l3">
     <h3>Core Concepts</h3>
     <div class="grid2">
       <div class="card">
@@ -744,10 +1059,6 @@ inv_index.collect()
 # [('data', ['D1','D2']), ('science', ['D1','D3']), ...]</pre>
 
     <div class="callout info"><strong>Partitioning tip:</strong> Use <code>repartition()</code> when you need to increase partitions (shuffle). Use <code>coalesce()</code> to reduce partitions without shuffle. Always partition by join keys to avoid cross-node shuffles.</div>
-  </div>
-</div>
-
-
     <h3>Spark — Five Components</h3>
     <table>
       <tr><th>Component</th><th>Purpose</th></tr>
@@ -840,14 +1151,19 @@ def palindromesPattern(item):
 # DNA k-mer: upper bound is len(line) - length + 1 (NOT len(line) - length!)
 def generatePattern(line, length):
     return [(line[i:i+length], 1) for i in range(len(line) - length + 1)]</pre>
-<!-- ============================================================ L4 ============================================================ -->
-<div class="section" id="l4">
-  <div class="section-header">
-    <div class="num">4</div>
-    <h2>Hive, Shark &amp; SparkSQL</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="l4" data-section="l4">
+    <div class="section-hdr" onclick="toggleSection('l4')">
+      <div class="section-num">4</div>
+      <div class="section-title">Hive, Shark &amp; SparkSQL</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-l4">0%</span>
+        <span class="section-chevron" id="chev-l4">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-l4">
     <h3>SparkSQL</h3>
     <ul>
       <li>Allows SQL queries directly on DataFrames and files.</li>
@@ -933,10 +1249,6 @@ Benefits:
 ) PARTITIONED BY (year INT)
 CLUSTERED BY (customer) INTO 32 BUCKETS
 STORED AS ORC;</pre>
-  </div>
-</div>
-
-
     <h3>Hive — Origin &amp; History</h3>
     <p>Hive was originally developed at <strong>Facebook</strong>. At peak, over <strong>90% of Facebook's MapReduce jobs</strong> were written in HiveQL. This demonstrated that SQL-like interfaces could radically lower the barrier for big-data analytics.</p>
 
@@ -988,14 +1300,19 @@ LOAD DATA INPATH '/data/new_file.csv' OVERWRITE INTO TABLE t;</pre>
         <p>A Python loop adding columns is flattened into a single plan step — Catalyst sees through Python control flow and optimises the whole batch together.</p>
       </div>
     </div>
-<!-- ============================================================ L5 ============================================================ -->
-<div class="section" id="l5">
-  <div class="section-header">
-    <div class="num">5</div>
-    <h2>Intro to Natural Language Processing (NLP)</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="l5" data-section="l5">
+    <div class="section-hdr" onclick="toggleSection('l5')">
+      <div class="section-num">5</div>
+      <div class="section-title">Intro to Natural Language Processing (NLP)</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-l5">0%</span>
+        <span class="section-chevron" id="chev-l5">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-l5">
     <h3>Linguistics Framework (NLP Subfields)</h3>
     <table>
       <tr><th>Subfield</th><th>What it studies</th><th>Example</th></tr>
@@ -1262,10 +1579,6 @@ Final tokenization of "hug pun":
 
 OOV handling: unknown words split into known subword tokens (never truly OOV)</div>
     <p>Used in GPT, BERT, and all modern LLMs. Balances vocabulary size vs coverage.</p>
-  </div>
-</div>
-
-
     <h3>Corpus &amp; Annotation</h3>
     <p>A <strong>corpus</strong> is a large structured collection of text. <strong>Annotation</strong> = adding metadata to corpus text: POS tags, parse trees, NER labels, etc. Annotated corpora are the foundation of supervised NLP.</p>
 
@@ -1308,14 +1621,19 @@ Represents: [1.0, 0, 3.0, 0, 0]
 In PySpark: SparseVector(5, [0,2], [1.0, 3.0])
   .toArray()  → [1.0, 0.0, 3.0, 0.0, 0.0]
   .indices    → [0, 2]</div>
-<!-- ============================================================ L6 ============================================================ -->
-<div class="section" id="l6">
-  <div class="section-header">
-    <div class="num">6</div>
-    <h2>Large Language Models &amp; Word Embeddings</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="l6" data-section="l6">
+    <div class="section-hdr" onclick="toggleSection('l6')">
+      <div class="section-num">6</div>
+      <div class="section-title">Large Language Models &amp; Word Embeddings</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-l6">0%</span>
+        <span class="section-chevron" id="chev-l6">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-l6">
     <h3>Distributional Hypothesis</h3>
     <p>Foundational idea behind word embeddings:</p>
     <div class="callout info"><strong>"A word is characterized by the company it keeps."</strong> — Firth (1957)<br>Words appearing in similar contexts tend to have similar meanings (Harris 1954).<br>This underpins Word2Vec, GloVe, and all distributional semantic models.</div>
@@ -1507,10 +1825,6 @@ Softmax → probabilities:
       <li>BERT/GPT: contextual embeddings — same word has different vectors in different sentences.</li>
       <li>Attention mechanism: allows model to look at all positions simultaneously.</li>
     </ul>
-  </div>
-</div>
-
-
     <h3>Text Similarity - Full Numerical Examples</h3>
     <p>Sets A = {The, quick, brown, fox} and B = {The, quick, brown, dog}: |A intersection B| = 3, |A| = |B| = 4, |A union B| = 5.</p>
     <table>
@@ -1573,14 +1887,19 @@ BUT -> ANT full trace:
    U    2   2   2   3   (U!=A: 1+min(1,2,1)=2; U!=N: 1+min(1,2,2)=2; U!=T: 1+min(2,2,2)=3)
    T    3   3   3   2   (T!=A: 1+min(2,3,2)=3; T!=N: 1+min(2,3,3)=3; T==T: dp[2][2]=2)
 Answer = dp[3][3] = 2</div>
-<!-- ============================================================ L7 ============================================================ -->
-<div class="section" id="l7">
-  <div class="section-header">
-    <div class="num">7</div>
-    <h2>Link Analysis — PageRank</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="l7" data-section="l7">
+    <div class="section-hdr" onclick="toggleSection('l7')">
+      <div class="section-num">7</div>
+      <div class="section-title">Link Analysis — PageRank</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-l7">0%</span>
+        <span class="section-chevron" id="chev-l7">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-l7">
     <h3>Web as a Graph</h3>
     <ul>
       <li><strong>Nodes:</strong> web pages</li>
@@ -1738,10 +2057,6 @@ M = [ 0    0    1  ]   ← who links TO A
 Start: r = [1/3, 1/3, 1/3]^T
 After 1 iter: r = M · r = [1/3, 1/6, 1/2]^T
 ... iterate until convergence</div>
-  </div>
-</div>
-
-
     <h3>WWW History</h3>
     <p><strong>Tim Berners-Lee</strong> invented the WWW in <strong>1989 at CERN, Geneva</strong>. Three components: (1) HTML, (2) HTTP, (3) URL.</p>
 
@@ -1811,14 +2126,19 @@ def Reduce(page, incoming_pageranks):
   Iter 5: delta = 0.0370
   Iter 6: delta = 0.0314
   ... monotonically decreasing until &lt; 1e-6 (tolerance)</div>
-<!-- ============================================================ L8 ============================================================ -->
-<div class="section" id="l8">
-  <div class="section-header">
-    <div class="num">8</div>
-    <h2>Graph Analytics</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="l8" data-section="l8">
+    <div class="section-hdr" onclick="toggleSection('l8')">
+      <div class="section-num">8</div>
+      <div class="section-title">Graph Analytics</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-l8">0%</span>
+        <span class="section-chevron" id="chev-l8">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-l8">
     <h3>Graph Types</h3>
     <div class="grid2">
       <div class="card">
@@ -2049,10 +2369,6 @@ Key insight: nodes that are "bridges" between clusters have high betweenness.
     </ul>
 
     <div class="callout tip"><strong>Exam tip:</strong> Be able to compute clustering coefficient and betweenness centrality for a small hand-drawn graph.</div>
-  </div>
-</div>
-
-
     <h3>Directed vs Undirected - Max Edges and Density</h3>
     <table>
       <tr><th></th><th>Undirected</th><th>Directed</th></tr>
@@ -2137,14 +2453,19 @@ Example (linear graph A-B-C-D-E from L8 slides):
 
 For node B with shortcut edge B-D added: BC(B) = 3.5 (some paths split between B-C and B-D routes)</div>
     <div class="callout info"><strong>Girvan-Newman community detection:</strong> iteratively remove the edge with highest betweenness -> the graph splits into communities at each removal step. Stop when desired number of communities is reached.</div>
-<!-- ============================================================ L9 ============================================================ -->
-<div class="section" id="l9">
-  <div class="section-header">
-    <div class="num">9</div>
-    <h2>Big Data Storage &amp; NoSQL</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="l9" data-section="l9">
+    <div class="section-hdr" onclick="toggleSection('l9')">
+      <div class="section-num">9</div>
+      <div class="section-title">Big Data Storage &amp; NoSQL</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-l9">0%</span>
+        <span class="section-chevron" id="chev-l9">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-l9">
     <h3>ACID Properties (Traditional RDBMS)</h3>
     <table>
       <tr><th>Property</th><th>Meaning</th></tr>
@@ -2321,10 +2642,6 @@ Why it matters:
         </ul>
       </div>
     </div>
-  </div>
-</div>
-
-
     <h3>Lost Updates Problem (Concurrency)</h3>
     <div class="formula">Scenario: two transactions read balance = $100 simultaneously
   T1: reads 100, adds 50, writes 150
@@ -2377,14 +2694,19 @@ Properties:
       <li><strong>Best for:</strong> relationship-heavy queries — social networks, fraud rings, knowledge graphs, routing</li>
       <li><strong>Why not RDBMS?</strong> Multi-hop JOINs (e.g., "friends of friends of friends") become exponentially expensive; graph DBs traverse edges in O(1) per hop</li>
     </ul>
-<!-- ============================================================ L10 ============================================================ -->
-<div class="section" id="l10">
-  <div class="section-header">
-    <div class="num">10</div>
-    <h2>Recommendation Systems</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="l10" data-section="l10">
+    <div class="section-hdr" onclick="toggleSection('l10')">
+      <div class="section-num">10</div>
+      <div class="section-title">Recommendation Systems</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-l10">0%</span>
+        <span class="section-chevron" id="chev-l10">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-l10">
     <h3>Three Key Problems in Recommendation Systems</h3>
     <div class="step"><div class="step-num">1</div><div><strong>Gathering ratings:</strong> collecting known user-item ratings for the utility matrix (explicit asks vs implicit inference)</div></div>
     <div class="step"><div class="step-num">2</div><div><strong>Estimating unknowns:</strong> predicting missing ratings from the known ones (the core ML problem)</div></div>
@@ -2537,10 +2859,6 @@ model.transform(single_user).orderBy('prediction', ascending=False).show()</pre>
       <li><strong>Scalability:</strong> Millions of users × millions of items. Fix: approximate nearest neighbors, distributed ALS.</li>
       <li><strong>Filter Bubble:</strong> Always recommending similar items → lack of diversity. Fix: inject serendipitous recommendations.</li>
     </ul>
-  </div>
-</div>
-
-
     <h3>The Long Tail — Origin</h3>
     <p>Physical stores are constrained by <strong>shelf space</strong> → they stock only the top-N most popular items. Online stores have no shelf-space limit, so they can profitably serve the "long tail" of niche items. The long tail items together often outsell the hits (Amazon: ~57% of sales from long-tail titles).</p>
 
@@ -2584,14 +2902,19 @@ Key insight: items change less than users → item-item similarity is more stabl
 
     <h3>Latent Factor Model — Third Paradigm</h3>
     <div class="callout info"><strong>Three distinct RecSys paradigms:</strong> (1) Content-Based Filtering, (2) Collaborative Filtering (user-user / item-item KNN), (3) <strong>Latent Factor Models</strong> (Matrix Factorization / ALS). Latent Factor Models are NOT a variant of CF — they are a separate approach that decomposes the utility matrix into low-rank user and item matrices.</div>
-<!-- ============================================================ CODE REFERENCE ============================================================ -->
-<div class="section" id="code">
-  <div class="section-header">
-    <div class="num">T</div>
-    <h2>Tutorial Code Reference (T01–T04 &amp; Notebooks)</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="code" data-section="code">
+    <div class="section-hdr" onclick="toggleSection('code')">
+      <div class="section-num">T</div>
+      <div class="section-title">Tutorial Code Reference (T01–T04 &amp; Notebooks)</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-code">0%</span>
+        <span class="section-chevron" id="chev-code">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-code">
     <h3>T01 — Pandas Essentials</h3>
     <pre># Read TSV file
 df = pd.read_csv('data.tsv', delimiter='\t')
@@ -2975,10 +3298,6 @@ rdd.map(lambda x: x.split()).collect()
     </div>
 
     <div class="callout tip"><strong>Pattern to memorise:</strong> <code>flatMap → map → reduceByKey → sortBy → collect()</code> is the canonical word-count pipeline. Expect to write or trace it in the exam.</div>
-  </div>
-</div>
-
-
     <h3>Exam Review — PageRank Numerical Traces</h3>
     <h4>Spider Trap Example (nodes y, a, m; β=0.85)</h4>
     <div class="formula">Graph: y→y, y→a, a→m, m→a  (m is a spider trap — links only within {a,m})
@@ -3460,14 +3779,19 @@ def compute_rouge_l(sent_a, sent_b):
 
 rouge_udf = udf(compute_rouge_l, FloatType())
 df = df.withColumn("similarity", rouge_udf(col("sentence_a"), col("sentence_b")))</pre>
-<!-- ============================================================ QUICK SUMMARY ============================================================ -->
-<div class="section" id="summary">
-  <div class="section-header">
-    <div class="num">★</div>
-    <h2>Quick Reference Summary</h2>
+    </div>
   </div>
-  <div class="section-body">
 
+  <div class="section-card" id="summary" data-section="summary">
+    <div class="section-hdr" onclick="toggleSection('summary')">
+      <div class="section-num">★</div>
+      <div class="section-title">Quick Reference Summary</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-summary">0%</span>
+        <span class="section-chevron" id="chev-summary">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-summary">
     <h3>Must-Know Formulas</h3>
     <table>
       <tr><th>Topic</th><th>Formula</th></tr>
@@ -3535,15 +3859,414 @@ df = df.withColumn("similarity", rouge_udf(col("sentence_a"), col("sentence_b"))
         <li>Collaborative vs content-based filtering</li>
       </ol>
     </div>
-
-  </div>
-</div>
-
-</div><!-- /container -->
+    </div><!-- /container -->
 
 <div style="text-align:center; color: var(--muted); padding: 30px; font-size: 0.82em;">
   DSAI4205 Big Data Analytics — Exam Review Notes · PolyU
 </div>
 
+</body>
+</html>
+    </div>
+  </div>
+
+    <!-- No-results -->
+    <div id="no-results">
+      <div style="font-size:2em;margin-bottom:8px;">🔍</div>
+      <div>No topics match your search.</div>
+      <button onclick="clearSearch()" style="margin-top:12px;padding:6px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--accent);cursor:pointer;">Clear search</button>
+    </div>
+
+    <div style="text-align:center;color:var(--muted);padding:24px;font-size:0.82em;">
+      DSAI4205 Big Data Analytics — Exam Review Notes · PolyU
+    </div>
+  </main>
+</div><!-- /layout -->
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   DSAI4205 Exam Review — Interactive Engine (vanilla JS)
+   ═══════════════════════════════════════════════════════ */
+
+const LS_DONE  = 'dsai4205-done';
+const LS_THEME = 'dsai4205-theme';
+
+let subsectionMap = {};   // subId → { sectionId, checkbox, subBody, wrapper }
+let searchActive  = false;
+let searchTimer   = null;
+
+// ═══════════════════════════════════════════════════════
+// 1. DOM SETUP — build subsections on DOMContentLoaded
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  buildSubsections();
+  restoreTheme();
+  restoreProgress();
+  updateAllCounters();
+  setupSearch();
+  setupIntersectionObserver();
+});
+
+function buildSubsections() {
+  document.querySelectorAll('.section-body').forEach(sectionBody => {
+    const sectionId = sectionBody.id.replace('body-', '');
+    const allNodes  = Array.from(sectionBody.childNodes);
+
+    // Collect groups split at each H3
+    const groups = [];
+    let current  = null;
+
+    allNodes.forEach(node => {
+      const isH3 = node.nodeType === Node.ELEMENT_NODE && node.tagName === 'H3';
+      if (isH3) {
+        if (current) groups.push(current);
+        current = { h3text: node.textContent.trim(), nodes: [node] };
+      } else if (current) {
+        current.nodes.push(node);
+      }
+      // nodes before the first H3 are discarded (usually just whitespace)
+    });
+    if (current) groups.push(current);
+
+    if (groups.length === 0) return;
+
+    // Clear and rebuild section-body
+    sectionBody.innerHTML = '';
+
+    groups.forEach((g, idx) => {
+      const subId     = sectionId + '-' + idx;
+      const titleText = g.h3text;
+
+      const wrapper = document.createElement('div');
+      wrapper.className   = 'subsection';
+      wrapper.dataset.id  = subId;
+      wrapper.dataset.section = sectionId;
+
+      // ── Sub-header ──
+      const header = document.createElement('div');
+      header.className = 'sub-header';
+
+      // Checkbox
+      const cbWrap = document.createElement('label');
+      cbWrap.className = 'cb-wrap';
+      cbWrap.title     = 'Mark as done';
+      cbWrap.addEventListener('click', e => e.stopPropagation());
+
+      const cb = document.createElement('input');
+      cb.type      = 'checkbox';
+      cb.className = 'topic-cb';
+      cb.dataset.id = subId;
+      cb.addEventListener('change', () => onCheckboxChange(subId, sectionId));
+
+      const cbBox = document.createElement('span');
+      cbBox.className = 'cb-box';
+      cbWrap.appendChild(cb);
+      cbWrap.appendChild(cbBox);
+
+      // Title
+      const titleSpan = document.createElement('span');
+      titleSpan.className   = 'sub-title';
+      titleSpan.textContent = titleText;
+
+      // Chevron
+      const chevron = document.createElement('span');
+      chevron.className   = 'sub-chevron';
+      chevron.textContent = '▾';
+
+      header.appendChild(cbWrap);
+      header.appendChild(titleSpan);
+      header.appendChild(chevron);
+      header.addEventListener('click', () => toggleSubsection(wrapper));
+
+      // ── Sub-body ──
+      const subBody = document.createElement('div');
+      subBody.className = 'sub-body';
+      g.nodes.forEach(n => subBody.appendChild(n.cloneNode(true)));
+
+      wrapper.appendChild(header);
+      wrapper.appendChild(subBody);
+      sectionBody.appendChild(wrapper);
+
+      subsectionMap[subId] = { sectionId, checkbox: cb, subBody, wrapper, titleSpan };
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// 2. COLLAPSE / EXPAND
+// ═══════════════════════════════════════════════════════
+function toggleSection(sectionId) {
+  const body = document.getElementById('body-' + sectionId);
+  const chev = document.getElementById('chev-' + sectionId);
+  if (!body) return;
+  const isCollapsed = body.classList.contains('collapsed');
+  body.classList.toggle('collapsed', !isCollapsed);
+  if (chev) chev.classList.toggle('collapsed', !isCollapsed);
+}
+
+function toggleSubsection(wrapper) {
+  const body   = wrapper.querySelector('.sub-body');
+  const chevron = wrapper.querySelector('.sub-chevron');
+  if (!body) return;
+  const isCollapsed = body.classList.contains('collapsed');
+  body.classList.toggle('collapsed', !isCollapsed);
+  if (chevron) chevron.classList.toggle('collapsed', !isCollapsed);
+}
+
+function expandAll() {
+  document.querySelectorAll('.section-body').forEach(b => b.classList.remove('collapsed'));
+  document.querySelectorAll('.section-chevron').forEach(c => c.classList.remove('collapsed'));
+  document.querySelectorAll('.sub-body').forEach(b => b.classList.remove('collapsed'));
+  document.querySelectorAll('.sub-chevron').forEach(c => c.classList.remove('collapsed'));
+}
+
+function collapseAll() {
+  document.querySelectorAll('.section-body').forEach(b => b.classList.add('collapsed'));
+  document.querySelectorAll('.section-chevron').forEach(c => c.classList.add('collapsed'));
+  document.querySelectorAll('.sub-body').forEach(b => b.classList.add('collapsed'));
+  document.querySelectorAll('.sub-chevron').forEach(c => c.classList.add('collapsed'));
+}
+
+// ═══════════════════════════════════════════════════════
+// 3. SEARCH
+// ═══════════════════════════════════════════════════════
+function setupSearch() {
+  const inp = document.getElementById('search-input');
+  const clr = document.getElementById('search-clear');
+  inp.addEventListener('input', () => {
+    const val = inp.value.trim();
+    clr.style.display = val ? 'block' : 'none';
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => runSearch(val), 130);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') clearSearch();
+  });
+}
+
+function clearSearch() {
+  const inp = document.getElementById('search-input');
+  inp.value = '';
+  document.getElementById('search-clear').style.display = 'none';
+  runSearch('');
+}
+
+function runSearch(query) {
+  searchActive = !!query;
+  removeHighlights();
+
+  const noRes = document.getElementById('no-results');
+  let anyVisible = false;
+  const q = query.toLowerCase();
+
+  document.querySelectorAll('.section-card[data-section]').forEach(card => {
+    const sectionId = card.dataset.section;
+    const body = document.getElementById('body-' + sectionId);
+    if (!body) return;
+
+    if (!query) {
+      // Reset everything to visible / expanded
+      card.style.display = '';
+      body.classList.remove('collapsed');
+      document.getElementById('chev-' + sectionId)?.classList.remove('collapsed');
+      body.querySelectorAll('.subsection').forEach(sub => {
+        sub.style.display = '';
+        sub.querySelector('.sub-body')?.classList.remove('collapsed');
+        sub.querySelector('.sub-chevron')?.classList.remove('collapsed');
+      });
+      anyVisible = true;
+      return;
+    }
+
+    let sectionMatch = false;
+    body.querySelectorAll('.subsection').forEach(sub => {
+      const titleText = (sub.querySelector('.sub-title')?.textContent || '').toLowerCase();
+      const bodyText  = (sub.querySelector('.sub-body')?.textContent  || '').toLowerCase();
+      if (titleText.includes(q) || bodyText.includes(q)) {
+        sub.style.display = '';
+        const sb = sub.querySelector('.sub-body');
+        if (sb) { sb.classList.remove('collapsed'); }
+        const sc = sub.querySelector('.sub-chevron');
+        if (sc) { sc.classList.remove('collapsed'); }
+        highlightIn(sub, query);
+        sectionMatch = true;
+      } else {
+        sub.style.display = 'none';
+      }
+    });
+
+    if (sectionMatch) {
+      card.style.display = '';
+      body.classList.remove('collapsed');
+      document.getElementById('chev-' + sectionId)?.classList.remove('collapsed');
+      anyVisible = true;
+    } else {
+      card.style.display = 'none';
+    }
+  });
+
+  noRes.style.display = (!anyVisible && !!query) ? 'block' : 'none';
+}
+
+function highlightIn(el, query) {
+  if (!query) return;
+  const subBody = el.querySelector('.sub-body');
+  if (!subBody) return;
+  const walker = document.createTreeWalker(subBody, NodeFilter.SHOW_TEXT, null, false);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) textNodes.push(node);
+  const re = new RegExp('(' + escapeRe(query) + ')', 'gi');
+  textNodes.forEach(tn => {
+    if (!re.test(tn.textContent)) return;
+    re.lastIndex = 0;
+    const span = document.createElement('span');
+    span.innerHTML = tn.textContent.replace(re, '<mark class="srch">$1</mark>');
+    tn.parentNode.replaceChild(span, tn);
+  });
+}
+
+function removeHighlights() {
+  document.querySelectorAll('mark.srch').forEach(m => {
+    const txt = document.createTextNode(m.textContent);
+    m.parentNode.replaceChild(txt, m);
+  });
+  // Collapse ephemeral wrapper spans
+  document.querySelectorAll('span[data-hl]').forEach(s => {
+    const frag = document.createDocumentFragment();
+    while (s.firstChild) frag.appendChild(s.firstChild);
+    s.parentNode.replaceChild(frag, s);
+    s.parentNode?.normalize();
+  });
+}
+
+function escapeRe(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ═══════════════════════════════════════════════════════
+// 4. PROGRESS / CHECKBOXES
+// ═══════════════════════════════════════════════════════
+function onCheckboxChange(subId, sectionId) {
+  const entry = subsectionMap[subId];
+  if (!entry) return;
+  entry.wrapper.classList.toggle('done', entry.checkbox.checked);
+  saveDone();
+  updateAllCounters();
+}
+
+function saveDone() {
+  const state = {};
+  Object.keys(subsectionMap).forEach(id => {
+    if (subsectionMap[id].checkbox.checked) state[id] = true;
+  });
+  localStorage.setItem(LS_DONE, JSON.stringify(state));
+}
+
+function restoreProgress() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(LS_DONE) || '{}'); } catch (e) {}
+  Object.keys(saved).forEach(id => {
+    const entry = subsectionMap[id];
+    if (entry && saved[id]) {
+      entry.checkbox.checked = true;
+      entry.wrapper.classList.add('done');
+    }
+  });
+}
+
+function updateAllCounters() {
+  const perSection = {};
+  let totalDone = 0, totalAll = 0;
+
+  Object.keys(subsectionMap).forEach(id => {
+    const { sectionId, checkbox } = subsectionMap[id];
+    if (!perSection[sectionId]) perSection[sectionId] = { done: 0, total: 0 };
+    perSection[sectionId].total++;
+    totalAll++;
+    if (checkbox.checked) { perSection[sectionId].done++; totalDone++; }
+  });
+
+  Object.keys(perSection).forEach(sid => {
+    const { done, total } = perSection[sid];
+    const pct = total ? Math.round(done / total * 100) : 0;
+    const pctEl  = document.getElementById('pct-'  + sid);
+    const cntEl  = document.getElementById('cnt-'  + sid);
+    const fillEl = document.getElementById('fill-' + sid);
+    if (pctEl)  pctEl.textContent  = pct + '%';
+    if (cntEl)  cntEl.textContent  = done + '/' + total;
+    if (fillEl) fillEl.style.width = pct + '%';
+  });
+
+  document.getElementById('overall-counter').textContent = totalDone + ' / ' + totalAll + ' done';
+}
+
+// ═══════════════════════════════════════════════════════
+// 5. DARK MODE
+// ═══════════════════════════════════════════════════════
+function toggleTheme() {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const next   = isDark ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  document.getElementById('theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem(LS_THEME, next);
+}
+
+function restoreTheme() {
+  const saved = localStorage.getItem(LS_THEME);
+  if (saved) {
+    document.documentElement.dataset.theme = saved;
+    document.getElementById('theme-toggle').textContent = saved === 'dark' ? '☀️' : '🌙';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// 6. SIDEBAR
+// ═══════════════════════════════════════════════════════
+let desktopSidebarOpen = true;
+
+function toggleSidebar() {
+  const sidebar  = document.getElementById('sidebar');
+  const main     = document.getElementById('main');
+  const overlay  = document.getElementById('sidebar-overlay');
+  const isMobile = window.innerWidth <= 768;
+
+  if (isMobile) {
+    const isOpen = sidebar.classList.toggle('open');
+    overlay.classList.toggle('visible', isOpen);
+  } else {
+    desktopSidebarOpen = !desktopSidebarOpen;
+    sidebar.classList.toggle('hidden', !desktopSidebarOpen);
+  }
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('visible');
+}
+
+function scrollToSection(sectionId) {
+  const card = document.getElementById(sectionId);
+  if (!card) return;
+  const body = document.getElementById('body-' + sectionId);
+  if (body && body.classList.contains('collapsed')) toggleSection(sectionId);
+  setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  if (window.innerWidth <= 768) closeSidebar();
+}
+
+function setupIntersectionObserver() {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const sid = entry.target.id;
+        document.querySelectorAll('.sn-item').forEach(a => a.classList.remove('active'));
+        document.querySelector(`.sn-item[href="#${sid}"]`)?.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-60px 0px -55% 0px', threshold: 0 });
+
+  document.querySelectorAll('.section-card[data-section]').forEach(c => observer.observe(c));
+}
+</script>
 </body>
 </html>
