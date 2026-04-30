@@ -201,6 +201,27 @@
   </div>
 </div>
 
+
+    <h3>AI History — Key Dates</h3>
+    <table>
+      <tr><th>Event</th><th>Date / Detail</th></tr>
+      <tr><td><strong>ELIZA</strong></td><td>Created 1964–1967 at MIT. Used pattern-matching &amp; scripted responses. First chatbot.</td></tr>
+      <tr><td><strong>IBM Deep Blue</strong></td><td>Defeated Garry Kasparov on <strong>11 May 1997</strong> — first time a computer beat a world chess champion.</td></tr>
+      <tr><td><strong>AlphaGo</strong></td><td>Defeated Lee Sedol on <strong>15 March 2016</strong> — first time a computer beat a top-ranked professional Go player.</td></tr>
+    </table>
+    <div class="callout info"><strong>Motivating quote:</strong> "The purpose of computing is insight, not numbers." — motivates analytics over raw number-crunching.</div>
+
+    <h3>Big Data Tools Landscape (L1)</h3>
+    <p>The L1 slides list these as core Big Data processing tools: <strong>Hadoop</strong>, <strong>Spark</strong>, <strong>Dask</strong>, <strong>NetworkX</strong> (graph analytics). All are in scope.</p>
+
+    <h3>Exam Practice — Netflix mapped to 4 V's</h3>
+    <table>
+      <tr><th>V</th><th>Netflix challenge</th><th>Solution</th></tr>
+      <tr><td>Volume</td><td>Petabytes of viewing history, thumbnails, logs</td><td>Distributed storage (HDFS / S3) + Spark batch</td></tr>
+      <tr><td>Velocity</td><td>Millions of concurrent streams; real-time viewing events</td><td>Spark Streaming / Kafka for real-time pipelines</td></tr>
+      <tr><td>Variety</td><td>Structured ratings + unstructured subtitles/thumbnails + semi-structured clicklogs</td><td>SparkSQL + data lakes for schema-on-read</td></tr>
+      <tr><td>Veracity</td><td>Noisy implicit signals (play ≠ enjoyed); A/B test integrity</td><td>Anomaly detection, data validation, ML quality checks</td></tr>
+    </table>
 <!-- ============================================================ L2 ============================================================ -->
 <div class="section" id="l2">
   <div class="section-header">
@@ -369,6 +390,102 @@ arr2 = da.from_zarr('my_array.zarr')</pre>
   </div>
 </div>
 
+
+    <h3>Dask — Eager vs Lazy Execution</h3>
+    <table>
+      <tr><th></th><th>dask.delayed</th><th>dask.futures (distributed.client.submit)</th></tr>
+      <tr><td>When does work start?</td><td><strong>Lazy</strong> — builds task graph; nothing runs until <code>.compute()</code></td><td><strong>Eager</strong> — starts executing immediately on submit</td></tr>
+      <tr><td>Use when</td><td>You want to assemble a full pipeline before running</td><td>You want tasks to start immediately and overlap I/O</td></tr>
+    </table>
+
+    <h3>Dask — Important API Details</h3>
+    <pre># Construct Dask DataFrame from existing Pandas DataFrame
+ddf = dd.from_pandas(df, npartitions=4)
+
+# Control partition size when reading CSV
+ddf = dd.read_csv('data.csv', blocksize="64MB")   # each partition ≈ 64 MB
+
+# AVOID set_index — requires full shuffle (expensive!)
+# ddf.set_index('col')  ← very slow, triggers global sort
+
+# apply() with meta parameter (required when Dask can't infer output type)
+result = ddf["Distance"].apply(lambda x: x + 10,
+    meta=pd.Series(name="Distance", dtype="float64")).compute()
+
+# idxmax — get group key of maximum value
+busiest_day = ddf.groupby("DayOfWeek").DepDelay.mean().idxmax().compute()
+
+# Dask array transpose
+arr_sym = dask_arr + dask_arr.T
+arr_sym.mean(axis=1).compute()</pre>
+    <div class="callout warning"><strong>set_index is expensive:</strong> it requires a full shuffle across all partitions (like a wide transformation in Spark). Avoid it unless absolutely necessary — sort your source data instead.</div>
+
+    <h3>Dask Performance Benchmark</h3>
+    <p>LinkedIn dataset (flight delays): <strong>Pandas = 6.94 s</strong>, <strong>Dask = 4.06 s</strong> on the same machine. Dask wins because it parallelises across cores.</p>
+
+    <h3>Chunk Size Trade-offs</h3>
+    <table>
+      <tr><th>Chunk too small</th><th>Chunk too large</th><th>Sweet spot</th></tr>
+      <tr><td>Too many tasks → scheduler overhead dominates</td><td>Memory pressure → spills to disk / OOM</td><td>~100 MB – 1 GB per chunk</td></tr>
+    </table>
+
+    <h3>Dask Advanced API</h3>
+    <pre>import dask.array as da
+import dask
+
+# dask.compute(a, b) fuses task graphs - shared subgraphs computed only once
+mean_delay = ddf["DepDelay"].mean()
+std_delay  = ddf["DepDelay"].std()
+m, s = dask.compute(mean_delay, std_delay)   # ONE pass, not two
+
+# .chunks vs .chunksize
+arr = da.zeros((100, 100), chunks=(25, 25))
+arr.chunks      # ((25,25,25,25), (25,25,25,25)) - explicit size of every chunk
+arr.chunksize   # (25, 25) - largest chunk shape
+
+# rechunk: -1 means keep entire axis as ONE chunk; "auto" lets Dask choose
+arr.rechunk({0: -1, 1: 100})   # merge all row-axis chunks; keep col chunks at 100
+arr.rechunk("auto")             # Dask picks chunk sizes automatically
+
+# Eager triggers besides .compute()
+ddf.head(5)    # loads first few rows
+ddf.tail(5)    # loads last few rows
+len(ddf)       # triggers count
+
+# Client cleanup
+from dask.distributed import Client
+client = Client()
+# ... work ...
+client.shutdown()   # release cluster resources when done
+
+# map_blocks: apply function to each chunk
+# Without dtype: Dask runs func on test block to infer output type (extra calls!)
+result = arr.map_blocks(np.sqrt)                # Dask infers dtype (slower)
+result = arr.map_blocks(np.sqrt, dtype=float)   # explicit dtype (fastest, exact calls)
+
+# map_blocks on two arrays: matched block-by-block at same grid position
+result = da.map_blocks(func, data_arr, weights_arr, dtype=float)
+
+# map_overlap: each chunk borrows depth extra cells from neighbours
+# depth=n: borrow n cells each side along shared edges
+# boundary=0: fill outer edge with 0 (also: "reflect", "periodic", numeric)
+# trim=True (default): remove halo after computation so output shape == input shape
+smoothed = da.map_overlap(func, arr, depth=1, boundary=0, trim=True)
+
+# Diffusion equation via map_overlap (gamma < 0.25 for stability):
+# v_next[i,j] = v[i,j] + gamma * (N + S + E + W - 4*v[i,j])
+def diffuse(block, gamma=0.1):
+    return block + gamma * (
+        np.roll(block, 1, 0) + np.roll(block, -1, 0) +
+        np.roll(block, 1, 1) + np.roll(block, -1, 1) - 4*block)
+result = da.map_overlap(diffuse, grid, depth=1, boundary=0)
+
+# da.overlap.overlap() - inspect what the halo array looks like BEFORE computation
+halo_arr = da.overlap.overlap(arr, depth=1, boundary=0)
+
+# Zarr storage: chunk size matters for I/O performance
+# large chunks -> fewer reads, better for sequential access
+# small chunks -> many small reads, slow for large arrays</pre>
 <!-- ============================================================ L3 ============================================================ -->
 <div class="section" id="l3">
   <div class="section-header">
@@ -630,6 +747,99 @@ inv_index.collect()
   </div>
 </div>
 
+
+    <h3>Spark — Five Components</h3>
+    <table>
+      <tr><th>Component</th><th>Purpose</th></tr>
+      <tr><td><strong>Spark Core</strong></td><td>RDD API, scheduling, fault tolerance — the foundation</td></tr>
+      <tr><td><strong>Spark SQL</strong></td><td>Structured data via DataFrames + SQL; Catalyst optimizer</td></tr>
+      <tr><td><strong>Spark Streaming</strong></td><td>Real-time micro-batch stream processing</td></tr>
+      <tr><td><strong>MLlib</strong></td><td>Distributed machine learning algorithms</td></tr>
+      <tr><td><strong>GraphX</strong></td><td>Graph computation (PageRank, connected components) on RDDs</td></tr>
+    </table>
+
+    <h3>Spark Architecture Terminology</h3>
+    <ul>
+      <li><strong>SparkContext</strong> = "the gateway to the cluster" — created in the Driver; connects to Cluster Manager.</li>
+      <li><strong>Master-slave architecture:</strong> Driver = master; Workers/Executors = slaves.</li>
+      <li><strong>Spark Web UI:</strong> accessible at <code>localhost:4040</code> during a running application.</li>
+    </ul>
+
+    <h3>Fault Tolerance — Driver vs Worker Failure</h3>
+    <table>
+      <tr><th>Failure type</th><th>What happens</th></tr>
+      <tr><td><strong>Worker / Executor fails</strong></td><td>Spark re-runs the lost tasks on other workers using RDD lineage (DAG). Application continues.</td></tr>
+      <tr><td><strong>Driver fails</strong></td><td>The entire Spark application fails — there is no automatic recovery. Must restart manually.</td></tr>
+    </table>
+
+    <h3>Cache Management</h3>
+    <pre># Persist / cache an RDD or DataFrame
+rdd.cache()                          # equivalent to persist(MEMORY_ONLY)
+df.persist(StorageLevel.MEMORY_AND_DISK)
+
+# Explicitly free the cache when done (important for long pipelines)
+rdd.unpersist()
+df.unpersist()
+
+# Reproducible train/test split
+train, test = df.randomSplit([0.8, 0.2], seed=42)   # seed ensures same split every run</pre>
+
+    <h3>Spark Log Levels</h3>
+    <table>
+      <tr><th>Level</th><th>Description</th></tr>
+      <tr><td>DEBUG</td><td>Fine-grained debugging info</td></tr>
+      <tr><td>INFO</td><td>Progress at coarse level</td></tr>
+      <tr><td>WARN</td><td>Potentially harmful situations (Spark default)</td></tr>
+      <tr><td>ERROR</td><td>Error events that still allow continuation</td></tr>
+    </table>
+    <pre>spark.sparkContext.setLogLevel("WARN")    # suppress INFO spam
+spark.getConf().getAll()                  # inspect all current config settings</pre>
+
+    <h3>Extended RDD Operations</h3>
+    <pre>from operator import add
+
+# Key-value RDD shortcuts
+kvRDD.keys().collect()               # extract all keys
+kvRDD.values().collect()             # extract all values
+kvRDD.countByKey()                   # {key: count} as defaultdict
+kvRDD.countByValue()                 # {value: count} as defaultdict
+
+# Filtering key-value RDDs
+kvRDD.filter(lambda kv: kv[0] < 5)  # filter by key
+kvRDD.filter(lambda kv: kv[1] > 10) # filter by value
+
+# Sorting
+rdd.sortBy(lambda kv: kv[0])        # sort by key (ascending)
+rdd.sortBy(lambda kv: kv[1], ascending=False)  # sort by value descending
+
+# takeOrdered - descending trick (negate the sort key)
+rdd.takeOrdered(6, key=lambda x: -1*x)   # largest 6 elements
+
+# parallelize accepts list, tuple, set, list-of-tuples, and even strings
+sc.parallelize([1, 2, 3])
+sc.parallelize(list("Hello"))        # character-level: ['H','e','l','l','o']
+
+# Inverted index (authoritative solution from T03 slides)
+rdd = spark.textFile("documents.txt")
+rdd = rdd.map(lambda x: x.split("||"))          .map(lambda p: (p[0].strip(), p[1].strip()))
+rdd = rdd.flatMap(lambda pair: [
+          (word.strip().lower(), pair[0]) for word in pair[1].split()])
+rdd = rdd.distinct()           # CRITICAL: prevents double-counting same word in same doc
+rdd = rdd.groupByKey()
+rdd = rdd.map(lambda x: (x[0], sorted(list(x[1])))).sortByKey()
+
+# DNA palindrome - character-by-character reverse (exam version, not [::-1])
+def palindromesPattern(item):
+    key = item[0]
+    l = ""
+    for i in range(len(key)):            l += key[i]
+    r = ""
+    for i in range(-1, -len(key)-1, -1): r += key[i]
+    return (key, l == r)
+
+# DNA k-mer: upper bound is len(line) - length + 1 (NOT len(line) - length!)
+def generatePattern(line, length):
+    return [(line[i:i+length], 1) for i in range(len(line) - length + 1)]</pre>
 <!-- ============================================================ L4 ============================================================ -->
 <div class="section" id="l4">
   <div class="section-header">
@@ -726,6 +936,58 @@ STORED AS ORC;</pre>
   </div>
 </div>
 
+
+    <h3>Hive — Origin &amp; History</h3>
+    <p>Hive was originally developed at <strong>Facebook</strong>. At peak, over <strong>90% of Facebook's MapReduce jobs</strong> were written in HiveQL. This demonstrated that SQL-like interfaces could radically lower the barrier for big-data analytics.</p>
+
+    <h3>Hive 3-Level Data Model</h3>
+    <div class="formula">Databases  →  Tables  →  Partitions / Buckets
+
+Partitions: physically divide data by a column value (e.g., year=2024/)
+            → improves query performance via partition pruning
+
+Buckets:    hash-partition rows within a partition into N files
+            → enables efficient sampling and map-side joins
+            CLUSTERED BY (col) INTO N BUCKETS</div>
+
+    <h3>Hive Architecture — 4 Components</h3>
+    <table>
+      <tr><th>Component</th><th>Role</th></tr>
+      <tr><td><strong>Metastore</strong></td><td>Stores table schemas, partition info, column stats (uses RDBMS like MySQL/Derby)</td></tr>
+      <tr><td><strong>Parser / Compiler</strong></td><td>Parses HiveQL → abstract syntax tree → logical plan</td></tr>
+      <tr><td><strong>Optimizer</strong></td><td>Rewrites logical plan for efficiency (predicate pushdown, join ordering)</td></tr>
+      <tr><td><strong>Execution Engine</strong></td><td>Translates plan to MapReduce / Tez / Spark tasks and runs them</td></tr>
+    </table>
+
+    <h3>HiveQL — Window Functions</h3>
+    <pre>-- Rank employees by salary within each department
+SELECT name, dept, salary,
+       RANK() OVER (PARTITION BY dept ORDER BY salary DESC) AS rnk
+FROM employees;
+
+-- Running total
+SELECT date, amount,
+       SUM(amount) OVER (ORDER BY date) AS running_total
+FROM sales;</pre>
+
+    <h3>HiveQL — LOAD DATA OVERWRITE</h3>
+    <pre>-- Append to existing table data (default behaviour)
+LOAD DATA INPATH '/data/new_file.csv' INTO TABLE t;
+
+-- Replace all existing data (OVERWRITE keyword)
+LOAD DATA INPATH '/data/new_file.csv' OVERWRITE INTO TABLE t;</pre>
+
+    <h3>Catalyst Optimizer — Advanced Rewrites</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>Constant Folding</h4>
+        <p><code>df.filter(col('age') &gt; 20 + 10)</code> is rewritten at compile-time to <code>df.filter(col('age') &gt; 30)</code>. Arithmetic on literals is resolved before execution.</p>
+      </div>
+      <div class="card">
+        <h4>Loop Unrolling</h4>
+        <p>A Python loop adding columns is flattened into a single plan step — Catalyst sees through Python control flow and optimises the whole batch together.</p>
+      </div>
+    </div>
 <!-- ============================================================ L5 ============================================================ -->
 <div class="section" id="l5">
   <div class="section-header">
@@ -1003,6 +1265,49 @@ OOV handling: unknown words split into known subword tokens (never truly OOV)</d
   </div>
 </div>
 
+
+    <h3>Corpus &amp; Annotation</h3>
+    <p>A <strong>corpus</strong> is a large structured collection of text. <strong>Annotation</strong> = adding metadata to corpus text: POS tags, parse trees, NER labels, etc. Annotated corpora are the foundation of supervised NLP.</p>
+
+    <h3>Penn Treebank — 14 Phrasal / Clause Categories</h3>
+    <table>
+      <tr><th>Tag</th><th>Meaning</th><th>Tag</th><th>Meaning</th></tr>
+      <tr><td>ADJP</td><td>Adjective phrase</td><td>VP</td><td>Verb phrase</td></tr>
+      <tr><td>ADVP</td><td>Adverb phrase</td><td>WHADVP</td><td>Wh-adverb phrase</td></tr>
+      <tr><td>NP</td><td>Noun phrase</td><td>WHNP</td><td>Wh-noun phrase</td></tr>
+      <tr><td>PP</td><td>Prepositional phrase</td><td>WHPP</td><td>Wh-prepositional phrase</td></tr>
+      <tr><td>S</td><td>Simple declarative clause</td><td>X</td><td>Unknown / uncertain</td></tr>
+      <tr><td>SBAR</td><td>Subordinate clause</td><td>SINV</td><td>Inverted declarative</td></tr>
+      <tr><td>SBARQ</td><td>Direct question (wh-word)</td><td>SQ</td><td>Inverted yes/no question</td></tr>
+    </table>
+
+    <h3>NER — Named Entity Categories</h3>
+    <p>Standard NER entity types to know: <strong>PERSON, ORGANIZATION, LOCATION, DATE, TIME, MONEY, PERCENT, FACILITY, GPE</strong> (geo-political entity, e.g., "Hong Kong", "USA").</p>
+
+    <h3>TF-IDF — Two TF Normalisation Formulas</h3>
+    <div class="callout warning"><strong>Two different TF definitions are used across lectures — know both:</strong></div>
+    <table>
+      <tr><th>Source</th><th>Formula</th><th>Denominator</th></tr>
+      <tr><td>L5 (slides)</td><td>TF(t,d) = count(t,d) / max_t count(t,d)</td><td>Max term freq in document — prevents long-doc bias in a different way</td></tr>
+      <tr><td>L10 / content-based</td><td>TF(t,d) = count(t,d) / |d|</td><td>Total words in document</td></tr>
+    </table>
+    <div class="formula">IDF uses log base 2:  IDF(t) = log₂(N / df_t)
+
+where N = total documents,  df_t = documents containing term t
+
+Example: N=4 docs, "cat" appears in 2 docs
+  IDF("cat") = log₂(4/2) = log₂(2) = 1.0
+  If TF("cat", doc1) = 0.25, then TF-IDF = 0.25 × 1.0 = 0.25</div>
+
+    <h3>Sparse Vector Format</h3>
+    <div class="formula">Sparse vector = (total_size, [non-zero indices], [non-zero values])
+
+Example: size=5, indices=[0,2], values=[1.0, 3.0]
+Represents: [1.0, 0, 3.0, 0, 0]
+
+In PySpark: SparseVector(5, [0,2], [1.0, 3.0])
+  .toArray()  → [1.0, 0.0, 3.0, 0.0, 0.0]
+  .indices    → [0, 2]</div>
 <!-- ============================================================ L6 ============================================================ -->
 <div class="section" id="l6">
   <div class="section-header">
@@ -1205,6 +1510,69 @@ Softmax → probabilities:
   </div>
 </div>
 
+
+    <h3>Text Similarity - Full Numerical Examples</h3>
+    <p>Sets A = {The, quick, brown, fox} and B = {The, quick, brown, dog}: |A intersection B| = 3, |A| = |B| = 4, |A union B| = 5.</p>
+    <table>
+      <tr><th>Metric</th><th>Formula</th><th>Worked value</th><th>Key property</th></tr>
+      <tr><td><strong>Jaccard</strong></td><td>|A&amp;cap;B| / |A&amp;cup;B|</td><td>3/5 = 0.60</td><td>Penalises non-overlap heavily</td></tr>
+      <tr><td><strong>Sorensen-Dice</strong></td><td>2|A&amp;cap;B| / (|A|+|B|)</td><td>2x3/(4+4) = <strong>0.75</strong></td><td>Twice the weight to overlap vs union</td></tr>
+      <tr><td><strong>Overlap coefficient</strong></td><td>|A&amp;cap;B| / min(|A|,|B|)</td><td>3/4 = <strong>0.75</strong></td><td>= 1.0 when one set is a strict subset</td></tr>
+      <tr><td><strong>Tversky</strong></td><td>|A&amp;cap;B| / (|A&amp;cap;B| + a|A\B| + b|B\A|)</td><td>a=b=0.5: 3/(3+0.5+0.5) = <strong>0.75</strong></td><td>a=b=1 Jaccard; a=b=0.5 Dice</td></tr>
+      <tr><td><strong>Monge-Elkan</strong></td><td>avg over A of max secondary-sim to B</td><td>Only hybrid method; O(nm)</td><td>Handles variable-size sets</td></tr>
+    </table>
+
+    <h3>Cosine Similarity - Worked Numerical Example</h3>
+    <div class="formula">"The quick brown fox" vs "The quick brown dog" (word-count vectors):
+  v1 = [1,1,1,1,0], v2 = [1,1,1,0,1]
+  dot product = 3,  ||v1|| = ||v2|| = 2
+  cosine = 3 / (2 x 2) = 0.75</div>
+
+    <h3>Word Analogy Arithmetic - Coordinate Trace</h3>
+    <div class="formula">Axes: [royalty, age, gender(1=M, 9=F)]
+  king=[8,8,1], man=[0,7,1], woman=[0,7,9]
+  king - man + woman = [8,8,1]-[0,7,1]+[0,7,9] = [8,8,9]  (queen)
+
+King/queen differ on gender axis only.
+Rule: v(king) - v(man) + v(woman) ~= v(queen)</div>
+
+    <h3>Word2Vec - Practical Embedding Facts</h3>
+    <ul>
+      <li>Typical dimension: <strong>300</strong></li>
+      <li>Typical component value range: <strong>-0.2 to +0.2</strong></li>
+      <li>Example: component 126 of the GloVe embedding for "king" correlates with gender</li>
+    </ul>
+
+    <h3>Skip-gram Weight Matrix Dimensions</h3>
+    <div class="formula">x  = V-dim one-hot input
+W  = (V x N) embedding matrix (look-up table)
+     one-hot x dot W = selects row x of W
+v_c = N-dim hidden layer (center word vector, no activation)
+W' = (N x V) output weight matrix
+output = softmax over V words</div>
+
+    <h3>GloVe - Weighting Function and Hyperparameters</h3>
+    <div class="formula">f(x) = (x/x_max)^alpha   if x &lt; x_max
+f(x) = 1                 if x &gt;= x_max
+
+Standard values: x_max = 100,  alpha = 0.75
+
+Effect: rare pairs get small non-zero weight; frequent pairs capped at 1.
+Prevents high-frequency word pairs (the, a, ...) from dominating training.</div>
+
+    <h3>Levenshtein DP - Cell-by-Cell Fill Logic</h3>
+    <div class="formula">dp[i][j] = 0                       if s1[i] == s2[j]   (free match)
+           = 1 + min(dp[i-1][j-1],     substitution (diagonal)
+                     dp[i-1][j  ],     deletion (up)
+                     dp[i  ][j-1])     insertion (left)
+
+BUT -> ANT full trace:
+       ""   A   N   T
+  ""    0   1   2   3
+   B    1   1   2   3   (B!=A: 1+min(0,1,1)=1; B!=N: 1+min(1,1,2)=2; B!=T: 1+min(2,2,2)=3)
+   U    2   2   2   3   (U!=A: 1+min(1,2,1)=2; U!=N: 1+min(1,2,2)=2; U!=T: 1+min(2,2,2)=3)
+   T    3   3   3   2   (T!=A: 1+min(2,3,2)=3; T!=N: 1+min(2,3,3)=3; T==T: dp[2][2]=2)
+Answer = dp[3][3] = 2</div>
 <!-- ============================================================ L7 ============================================================ -->
 <div class="section" id="l7">
   <div class="section-header">
@@ -1373,6 +1741,76 @@ After 1 iter: r = M · r = [1/3, 1/6, 1/2]^T
   </div>
 </div>
 
+
+    <h3>WWW History</h3>
+    <p><strong>Tim Berners-Lee</strong> invented the WWW in <strong>1989 at CERN, Geneva</strong>. Three components: (1) HTML, (2) HTTP, (3) URL.</p>
+
+    <h3>Links as Votes - Trust Propagation Intuition</h3>
+    <div class="callout info"><strong>Conceptual motivation:</strong> "Good nodes won't point to Bad nodes. If you point to a Bad node you are Bad. If a Good node points to you, you are Good." This motivates why inbound link quality matters, not just count.</div>
+
+    <h3>PageRank Score Motivating Example</h3>
+    <table>
+      <tr><th>Page</th><th>B</th><th>C</th><th>E</th><th>F</th><th>D</th><th>A</th></tr>
+      <tr><td>PR score</td><td>38.4</td><td>34.3</td><td>8.1</td><td>3.9</td><td>3.9</td><td>3.3</td></tr>
+    </table>
+
+    <h3>Flow Equations - Gaussian Elimination (small graphs only)</h3>
+    <div class="formula">For small graphs: set up n equations r_j = sum r_i/d_i + constraint sum=1
+Solve as augmented matrix via row reduction (Gaussian elimination).
+NOTE from slides: "This method only works for small examples.
+We need a better method for large web-size graphs." -> Power iteration.</div>
+
+    <h3>Simple Cycle - Stationary Distribution</h3>
+    <div class="formula">Cycle A->B->C->A: stationary distribution = [1/3, 1/3, 1/3] (uniform)
+
+Existence/uniqueness theorem: "For ergodic graphs (aperiodic + irreducible),
+the stationary distribution is UNIQUE and will be reached regardless
+of the initial distribution at t=0."</div>
+
+    <h3>Dead-End Full Algorithm - Leaked Rank Re-insertion</h3>
+    <pre>while not converged:
+    for j in all_pages:
+        if in_degree(j) > 0:
+            r_new[j] = sum(beta * r[i] / out_degree(i) for i in predecessors(j))
+        else:
+            r_new[j] = 0
+
+    leaked = 1 - sum(r_new)    # equals 1-beta when no dead-ends
+    for j in all_pages:
+        r_new[j] += leaked / N  # redistribute uniformly</pre>
+
+    <h3>Memory at Scale + Sparse Matrix Trick</h3>
+    <div class="formula">N = 1 billion pages
+  Two rank vectors: 2 x N x 4 bytes = 16 GB total
+  Full matrix A: N^2 ~= 10^18 entries -- impossible to store
+
+Sparsity: avg 10 out-links/page -> 10N non-zero entries in M (feasible)
+
+Algebraic trick: (1/N)*J*r = 1/N because sum(r) = 1 (probability vector)
+  -> never materialise full N x N teleportation matrix
+  -> r_new = beta*M*r + (1-beta)/N  uses only sparse M</div>
+
+    <h3>MapReduce PageRank - Pseudocode</h3>
+    <pre># Map: distribute rank from each page to its neighbours
+def Map(page, pagerank):
+    for neighbour in Adj[page]:
+        emit(neighbour, pagerank / len(Adj[page]))
+
+# Reduce: aggregate incoming rank, apply damping factor
+def Reduce(page, incoming_pageranks):
+    PR = sum(beta * pr for pr in incoming_pageranks)
+    emit(page, PR)
+# Note: teleportation (1-beta)/N added as post-processing step</pre>
+
+    <h3>Convergence Trace - L1 Norm Per Iteration</h3>
+    <div class="formula">Tutorial 7 example graph (4 nodes):
+  Iter 1: delta = 0.2833
+  Iter 2: delta = 0.2408
+  Iter 3: delta = 0.2047
+  Iter 4: delta = 0.0870
+  Iter 5: delta = 0.0370
+  Iter 6: delta = 0.0314
+  ... monotonically decreasing until &lt; 1e-6 (tolerance)</div>
 <!-- ============================================================ L8 ============================================================ -->
 <div class="section" id="l8">
   <div class="section-header">
@@ -1614,6 +2052,91 @@ Key insight: nodes that are "bridges" between clusters have high betweenness.
   </div>
 </div>
 
+
+    <h3>Directed vs Undirected - Max Edges and Density</h3>
+    <table>
+      <tr><th></th><th>Undirected</th><th>Directed</th></tr>
+      <tr><td>Max edges</td><td>N(N-1) / 2</td><td>N(N-1)  (double!)</td></tr>
+      <tr><td>Density</td><td>2|E| / N(N-1)</td><td>|E| / N(N-1)</td></tr>
+      <tr><td>Distance</td><td>Symmetric: d(i,j) = d(j,i)</td><td>Asymmetric: d(i,j) NOT= d(j,i)</td></tr>
+    </table>
+
+    <h3>Degree Distribution - Formal Definition</h3>
+    <div class="formula">P_k = N_k / N
+where N_k = nodes with degree k, N = total nodes
+P_k = probability a random node has degree k
+
+Power law (scale-free): P_k ~ k^(-gamma)  [WWW, social networks]
+Bell curve (random):    Erdos-Renyi graphs</div>
+
+    <h3>Path Definition - Can Revisit</h3>
+    <p>A <strong>path</strong> can revisit the same node or edge. A <strong>simple path</strong> visits each node at most once. This distinction matters in algorithm correctness.</p>
+
+    <h3>MSN Messenger - Full Statistics</h3>
+    <table>
+      <tr><th>Metric</th><th>MSN Messenger</th><th>PPI Network (comparison)</th></tr>
+      <tr><td>Nodes</td><td>240 million users</td><td>2,018 proteins</td></tr>
+      <tr><td>Edges</td><td>1.3 billion</td><td>2,930 interactions</td></tr>
+      <tr><td>Average degree</td><td><strong>14.4</strong></td><td>2.9</td></tr>
+      <tr><td>Avg path length</td><td>6.6</td><td>5.8</td></tr>
+      <tr><td>Clustering coeff</td><td><strong>0.11</strong></td><td>0.12</td></tr>
+      <tr><td>Components</td><td>1 giant (99.9%)</td><td>185; largest = 81%</td></tr>
+      <tr><td>Monthly activity</td><td>245M logged in; 180M conversed; 30B conversations; 255B messages</td><td>-</td></tr>
+    </table>
+
+    <h3>In-Degree Centrality = Majority Voting</h3>
+    <p>In-degree centrality = (number of incoming edges) / (N-1). Equivalent to <strong>majority voting</strong>: each in-neighbor casts one vote. Fast and simple; ignores voter quality.</p>
+
+    <h3>Closeness Centrality - Disconnected Graph Failure</h3>
+    <div class="formula">C_clos(v) = (N-1) / sum_x d(v,x)
+
+Disconnected graph: d(v, unreachable) = infinity
+  sum = infinity  for ANY node v
+  C_clos = (N-1)/infinity = 0  for EVERY node  (completely useless!)
+
+Fix: Harmonic Centrality: 1/infinity = 0 (unreachable pairs contribute 0, not infinity)</div>
+
+    <h3>Eigenvector Centrality - 4-Step Power Iteration Pseudocode</h3>
+    <div class="formula">Step 1: c^(0) = [1, 1, ..., 1]^T,  k = 1
+Step 2: c^(k) = A . c^(k-1)          (matrix-vector multiply)
+Step 3: c^(k) = c^(k) / ||c^(k)||_2  (L2 normalise)
+Step 4: if ||c^(k) - c^(k-1)||_1 &lt; tol: STOP; else k += 1, go to Step 2
+
+Intuition: "each node gives away its score to its successors; after many
+iterations the score stabilises to the dominant eigenvector."
+
+Google PageRank is a VARIANT of eigenvector centrality (adds teleportation).</div>
+
+    <h3>Which Centrality to Use?</h3>
+    <div class="callout warning"><strong>Krackhardt kite graph:</strong> degree, closeness, and betweenness each pick a DIFFERENT "most important" node. No centrality measure is universally best.</div>
+    <ul>
+      <li><strong>Rankings only order nodes; they don't quantify the gap</strong> between importance levels.</li>
+      <li><strong>Generalization failure:</strong> The measure that identifies the top node doesn't necessarily rank the rest correctly.</li>
+      <li>Study of 63 networks (Vignery and Laurier, 2020): no single measure dominates.</li>
+    </ul>
+
+    <h3>Edge Betweenness - Forward BFS + Backward Fractional Flow Algorithm</h3>
+    <div class="formula">Girvan-Newman edge betweenness calculation (3 phases per source node s):
+
+Phase 1 - BFS from s, count shortest paths sigma(s -> v):
+  sigma(s) = 1
+  sigma(s -> v) = sum of sigma(s -> parent) for each BFS parent of v
+
+Phase 2 - Backward pass (leaves to root), compute edge flow credit:
+  Each TARGET node t gets flow = 1
+  Edge (u, v) where u is parent of v in BFS tree:
+    credit(u->v) = sigma(s->u) / sigma(s->v)  x  (1 + sum of child edge credits of v)
+
+Phase 3 - Accumulate over all source nodes, divide by 2 (undirected counts each path twice)
+
+Example (linear graph A-B-C-D-E from L8 slides):
+  Node A: lies on shortest paths between no two nodes -> BC(A) = 0
+  Node B: lies on paths from A to {C,D,E} -> BC(B) = 3
+  Node C: lies on paths from {A,B} to {D,E} -> BC(C) = 4 (= 2 x 2 pairs)
+  Node D: BC(D) = 3, Node E: BC(E) = 0
+
+For node B with shortcut edge B-D added: BC(B) = 3.5 (some paths split between B-C and B-D routes)</div>
+    <div class="callout info"><strong>Girvan-Newman community detection:</strong> iteratively remove the edge with highest betweenness -> the graph splits into communities at each removal step. Stop when desired number of communities is reached.</div>
 <!-- ============================================================ L9 ============================================================ -->
 <div class="section" id="l9">
   <div class="section-header">
@@ -1801,6 +2324,59 @@ Why it matters:
   </div>
 </div>
 
+
+    <h3>Lost Updates Problem (Concurrency)</h3>
+    <div class="formula">Scenario: two transactions read balance = $100 simultaneously
+  T1: reads 100, adds 50, writes 150
+  T2: reads 100, adds 50, writes 150   ← overwrites T1's result!
+Final balance = $150 (WRONG — should be $200)
+
+This is a "lost update" — T1's write is overwritten by T2.
+Solution: ACID isolation (locks / MVCC) prevents this.</div>
+
+    <h3>Historical Context: Why NoSQL?</h3>
+    <p>NoSQL emerged in the <strong>Web 2.0 era</strong> when user-generated content (social media, blogs, wikis) created write volumes and schema-flexibility requirements that RDBMS could not handle cost-effectively. Scaling horizontally with commodity servers was cheaper than buying bigger Oracle machines.</p>
+
+    <h3>MongoDB ↔ RDBMS Terminology</h3>
+    <table>
+      <tr><th>RDBMS concept</th><th>MongoDB equivalent</th></tr>
+      <tr><td>Table</td><td>Collection</td></tr>
+      <tr><td>Row</td><td>Document (JSON/BSON)</td></tr>
+      <tr><td>Column</td><td>Field</td></tr>
+      <tr><td>JOIN</td><td>Embedded Document <em>or</em> $lookup (reference)</td></tr>
+      <tr><td>Partition / Shard</td><td>Shard</td></tr>
+      <tr><td>Index</td><td>Index (same concept)</td></tr>
+    </table>
+
+    <h3>Wide Column Stores — Column Families</h3>
+    <p><strong>Wide column stores</strong> (BigTable, HBase, Cassandra) group columns into <strong>column families</strong>. Rows can have different columns within a family (sparse). This is different from relational tables where every row has the same columns.</p>
+    <div class="formula">HBase example:
+  Row key: user:001
+    cf1:name  = "Alice"
+    cf1:age   = 30
+    cf2:salary = 85000    ← different column family; stored separately
+
+Properties:
+  • Sparse: if a column has no value for a row, it simply doesn't exist
+  • Column-family data stored contiguously on disk → fast column scans
+  • Examples: HBase, Cassandra (partition key + clustering columns), BigTable</div>
+
+    <h3>Key-Value Stores — RAM vs Persistent</h3>
+    <table>
+      <tr><th>Type</th><th>Example</th><th>Behaviour</th></tr>
+      <tr><td><strong>Non-persistent (RAM)</strong></td><td>Memcached</td><td>Data stored in memory only — lost on restart. Fastest possible reads/writes.</td></tr>
+      <tr><td><strong>Persistent (disk-backed)</strong></td><td>Redis (AOF / RDB modes)</td><td>Data optionally flushed to disk. Survives restarts. Also supports data structures (lists, sets, sorted sets).</td></tr>
+    </table>
+
+    <h3>CAP Theorem — Intuitive Motivation</h3>
+    <div class="callout info"><strong>Intuition:</strong> "I don't care if I don't see every 'like' immediately." — This is why social media platforms (Facebook, Twitter) choose <strong>Availability + Partition Tolerance</strong> (AP) with eventual consistency. Strong consistency would require blocking all writes during a network partition, which is unacceptable for a global service.</div>
+
+    <h3>Graph Databases</h3>
+    <ul>
+      <li><strong>Canonical example:</strong> Neo4j (nodes + edges + properties, query language: Cypher)</li>
+      <li><strong>Best for:</strong> relationship-heavy queries — social networks, fraud rings, knowledge graphs, routing</li>
+      <li><strong>Why not RDBMS?</strong> Multi-hop JOINs (e.g., "friends of friends of friends") become exponentially expensive; graph DBs traverse edges in O(1) per hop</li>
+    </ul>
 <!-- ============================================================ L10 ============================================================ -->
 <div class="section" id="l10">
   <div class="section-header">
@@ -1964,6 +2540,50 @@ model.transform(single_user).orderBy('prediction', ascending=False).show()</pre>
   </div>
 </div>
 
+
+    <h3>The Long Tail — Origin</h3>
+    <p>Physical stores are constrained by <strong>shelf space</strong> → they stock only the top-N most popular items. Online stores have no shelf-space limit, so they can profitably serve the "long tail" of niche items. The long tail items together often outsell the hits (Amazon: ~57% of sales from long-tail titles).</p>
+
+    <h3>User-Based CF — Explicit Weighted Average Formula</h3>
+    <div class="formula">Predict rating of user u for item i:
+
+  r̂_u,i = ( Σ_{v} sim(u,v) · r_{v,i} ) / ( Σ_{v} |sim(u,v)| )
+
+where the sums are over all neighbours v who have rated item i.
+
+This is the raw (non-baseline-adjusted) version.
+The baseline-adjusted version (shown elsewhere) adds b_ui.</div>
+
+    <h3>Item-Item CF — Numerical Worked Example</h3>
+    <div class="formula">Items 3 and 4 are similar to target item 5:
+  sim(item3, item5) = 0.41,  r_{user,3} = 2
+  sim(item4, item5) = 0.59,  r_{user,4} = 3
+
+Predicted rating:
+  r̂ = (0.41 × 2 + 0.59 × 3) / (0.41 + 0.59)
+     = (0.82 + 1.77) / 1.00
+     = 2.59  ≈  2.6
+
+Key insight: items change less than users → item-item similarity is more stable
+→ item-item CF is preferred over user-user CF at production scale (Amazon uses this)</div>
+
+    <h3>CF — Additional Limitations</h3>
+    <table>
+      <tr><th>Problem</th><th>Description</th><th>Fix</th></tr>
+      <tr><td><strong>First-rater problem</strong></td><td>A brand-new item has zero ratings → CF cannot recommend it at all (distinct from new-user cold start)</td><td>Use content-based bootstrap; editorial picks for new items</td></tr>
+      <tr><td><strong>Popularity bias</strong></td><td>Items with many ratings appear in more neighbors' lists → CF systematically over-recommends popular items, niche items get buried</td><td>Rerank with diversity / novelty penalty; coverage metric</td></tr>
+    </table>
+
+    <h3>Evaluation — Additional Metrics</h3>
+    <table>
+      <tr><th>Metric</th><th>What it measures</th><th>Notes</th></tr>
+      <tr><td><strong>Spearman's Rank Correlation</strong></td><td>Whether the <em>ranking</em> of recommendations matches the user's true preference order</td><td>Used when absolute rating values are unreliable but relative order matters</td></tr>
+      <tr><td><strong>0/1 Model</strong></td><td>Binarise ratings (liked ≥ threshold = 1, else 0) → compute Precision, Recall, ROC/AUC</td><td>Turns recommendation into a classification problem</td></tr>
+    </table>
+    <div class="callout warning"><strong>RMSE limitation:</strong> Squaring amplifies large errors — a 5→1 miss is penalised 16× more than a 5→4 miss. For skewed rating distributions, RMSE over-punishes outliers. MAE is more robust.</div>
+
+    <h3>Latent Factor Model — Third Paradigm</h3>
+    <div class="callout info"><strong>Three distinct RecSys paradigms:</strong> (1) Content-Based Filtering, (2) Collaborative Filtering (user-user / item-item KNN), (3) <strong>Latent Factor Models</strong> (Matrix Factorization / ALS). Latent Factor Models are NOT a variant of CF — they are a separate approach that decomposes the utility matrix into low-rank user and item matrices.</div>
 <!-- ============================================================ CODE REFERENCE ============================================================ -->
 <div class="section" id="code">
   <div class="section-header">
@@ -2358,6 +2978,488 @@ rdd.map(lambda x: x.split()).collect()
   </div>
 </div>
 
+
+    <h3>Exam Review — PageRank Numerical Traces</h3>
+    <h4>Spider Trap Example (nodes y, a, m; β=0.85)</h4>
+    <div class="formula">Graph: y→y, y→a, a→m, m→a  (m is a spider trap — links only within {a,m})
+
+Power iteration (β=0.85, start r=[1/3, 1/3, 1/3]):
+  The spider trap {a,m} absorbs rank over iterations.
+  Converged solution (approximate):
+    r_y ≈ 7/33 ≈ 0.212
+    r_a ≈ 5/33 ≈ 0.152
+    r_m ≈ 21/33 ≈ 0.636   ← trap absorbs most rank
+
+Fix: teleportation (Google Matrix) redistributes 1-β=0.15 uniformly</div>
+
+    <h4>Dead End Example</h4>
+    <div class="formula">A dead end node has no out-links → its rank is never redistributed → rank leaks out.
+
+Fix: treat dead-end as linking to ALL pages with equal probability 1/N.
+Equivalently: add row (1/N, 1/N, ... 1/N) for dead-end columns in M.
+
+After applying teleportation (β=0.85):
+  r_new = β·M·r + (1-β)/N
+This ensures rank is always conserved (sums to 1) every iteration.</div>
+
+    <h4>Edit Distance — DP Table (BUT → ANT)</h4>
+    <div class="formula">Levenshtein distance: BUT → ANT
+
+      ""   A   N   T
+ ""    0   1   2   3
+  B    1   1   2   3
+  U    2   2   2   3
+  T    3   3   3   2   ← answer = 2
+
+Operations: substitute B→A (cost 1), substitute U→N (cost 1), T→T (match, cost 0)
+Recurrence: dp[i][j] = 0 if s1[i]==s2[j], else 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])</div>
+
+    <h4>BPE — Full Worked Example</h4>
+    <div class="formula">Byte-Pair Encoding (subword tokenization):
+
+Start: character-level vocab with end-of-word marker
+  Corpus: "low low low lowest newest"
+  Initial: {l,o,w,&lt;/w&gt;: 3}, {l,o,w,e,s,t,&lt;/w&gt;: 1}, {n,e,w,e,s,t,&lt;/w&gt;: 1}
+
+Step 1: Find most frequent pair → (l, o) appears 5× → merge to "lo"
+Step 2: Find most frequent pair → (lo, w) appears 5× → merge to "low"
+Step 3: Find most frequent pair → (low, &lt;/w&gt;) appears 3× → merge to "low&lt;/w&gt;"
+... continue until vocab size reached
+
+Final vocab includes: {"l","o","w","e","s","t","n","lo","low","low&lt;/w&gt;","est","..."}
+Tokenization: "lowest" → "low" + "est&lt;/w&gt;"  (uses longest matching merge rule)</div>
+
+    <h3>Tutorial 6 — Full SparkNLP Pipeline &amp; CBOW Training</h3>
+    <pre>from sparknlp.annotator import *
+from sparknlp.base import *
+from pyspark.ml import Pipeline
+
+# SparkNLP preprocessing pipeline
+documentAssembler = DocumentAssembler().setInputCol("text").setOutputCol("document")
+sentenceDetector = SentenceDetector().setInputCol("document").setOutputCol("sentences")
+tokenizer        = Tokenizer().setInputCol("sentences").setOutputCol("tokens")
+normalizer       = Normalizer().setInputCol("tokens").setOutputCol("normalized")
+finisher         = Finisher().setInputCol("normalized").setOutputCol("finished")
+
+pipeline = Pipeline(stages=[documentAssembler, sentenceDetector,
+                             tokenizer, normalizer, finisher])
+model    = pipeline.fit(df)
+result   = model.transform(df)
+
+# ── Vocabulary building ────────────────────────────────────────────
+from collections import Counter
+import numpy as np
+
+PAD, UNK = '###', '???'
+all_tokens = [t for sent in all_sentences for t in sent]
+word_freq  = Counter(all_tokens)
+vocab      = [PAD, UNK] + [w for w, _ in word_freq.most_common()]
+word2idx   = {w: i for i, w in enumerate(vocab)}
+idx2word   = {i: w for w, i in word2idx.items()}
+vocab_size = len(vocab)
+
+# ── Encode / decode sequences ─────────────────────────────────────
+UNK_IDX = word2idx[UNK]
+def texts_to_sequences(texts):
+    return [[word2idx.get(w, UNK_IDX) for w in sent] for sent in texts]
+
+def sequences_to_texts(seqs):
+    return [[idx2word[i] for i in seq] for seq in seqs]
+
+# ── Context window generation (with PAD at boundaries) ─────────────
+PAD_IDX = word2idx[PAD]
+def generate_windows(seq, window_size):
+    padded = [PAD_IDX]*window_size + seq + [PAD_IDX]*window_size
+    for i in range(window_size, len(padded) - window_size):
+        context = padded[i-window_size:i] + padded[i+1:i+window_size+1]
+        target  = padded[i]
+        yield context, target
+
+# windows_to_batch + one-hot encode targets
+import keras.utils as ku
+windows = [w for seq in encoded for w in generate_windows(seq, window_size=2)]
+X = np.array([w[0] for w in windows])          # shape (N, 2*window_size)
+y = ku.to_categorical([w[1] for w in windows], num_classes=vocab_size)
+
+# ── Keras CBOW model ───────────────────────────────────────────────
+import tensorflow.keras.backend as K
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, Lambda, Dense
+from tensorflow.keras.callbacks import ModelCheckpoint
+
+window_size = 2   # context words on each side
+embed_dim   = 25
+
+model = Sequential([
+    Embedding(vocab_size, embed_dim, input_length=2*window_size),
+    Lambda(lambda x: K.mean(x, axis=1)),       # mean-pool context embeddings
+    Dense(vocab_size, activation='softmax')
+])
+model.compile(loss='categorical_crossentropy', optimizer='adam')
+
+checkpoint = ModelCheckpoint('best_cbow.h5', save_best_only=True, monitor='val_loss')
+model.fit(X, y, epochs=50, validation_split=0.1, callbacks=[checkpoint])</pre>
+
+    <h3>Tutorial 7 — PageRank Formula Note</h3>
+    <div class="callout warning"><strong>Formula discrepancy between tutorial and standard:</strong><br>
+    Standard (HTML notes): <code>r_new = β·M·r + (1−β)/N</code><br>
+    Tutorial 7 code:        <code>r_new = β·M·r + β/N</code><br>
+    The tutorial uses a non-standard form. In the exam, use the standard Google Matrix formula: <strong>(1−β)/N</strong>.
+    </div>
+    <pre>from operator import add
+
+def compute_contribs(url_urls_rank):
+    url, (urls, rank) = url_urls_rank
+    for dest in urls:
+        yield (dest, rank / len(urls))
+
+# Parse links from HTML text
+import re
+def extract_links(page_content):
+    return re.findall(r'href="([^"]+)"', page_content)
+
+# Full PySpark PageRank
+n    = links.count()
+beta = 0.85
+ranks = links.map(lambda x: (x[0], 1.0 / n))
+
+for _ in range(max_iter):
+    contribs  = links.join(ranks).flatMap(compute_contribs)
+    new_ranks = contribs.reduceByKey(add).mapValues(lambda r: beta*r + (1-beta)/n)
+    delta     = ranks.join(new_ranks).map(lambda x: abs(x[1][1]-x[1][0])).sum()
+    ranks     = new_ranks
+    if delta < 1e-6:
+        break</pre>
+
+    <h3>Tutorial 8 — Extended NetworkX Patterns</h3>
+    <pre>import networkx as nx
+
+# Random graph (Erdos-Renyi): each edge exists with probability p
+G_rand = nx.fast_gnp_random_graph(num_nodes=100, p=0.05, seed=42)
+
+# File I/O
+G = nx.read_edgelist('edges.csv', delimiter=',', nodetype=int)
+nx.write_edgelist(G, 'out_edges.csv')
+
+# Isolated nodes (no edges)
+G.add_nodes_from([10, 11, 12])     # adds nodes without connecting them
+
+# Graph modification
+G.remove_node(5)
+G.remove_edge(1, 2)
+
+# All shortest paths between all pairs
+all_paths = dict(nx.all_pairs_shortest_path(G))   # {src: {dst: [path]}}
+
+# Degree centrality (normalized by n-1)
+dc = nx.degree_centrality(G)       # {node: degree/(n-1)}
+
+# Special test graphs
+chain  = nx.path_graph(10)         # 10 nodes in a linear chain
+karate = nx.karate_club_graph()    # Zachary's karate club (34 nodes, 78 edges)
+                                   # standard benchmark for community detection</pre>
+
+    <h3>Betweenness Centrality — Numerical Example</h3>
+    <div class="formula">Betweenness centrality of node v:
+  BC(v) = Σ_{s≠v≠t} σ_st(v) / σ_st
+
+where σ_st = number of shortest paths from s to t
+      σ_st(v) = those paths that pass through v
+
+Example (5-node path graph 1-2-3-4-5):
+  Node 3 lies on ALL paths between {1,2} and {4,5}
+  BC(3) = (2×2) / (2×2) = 1.0  (normalised)
+
+For a star graph (center node C):
+  C lies on every inter-leaf shortest path
+  BC(C) = (N-1)(N-2)/2  / ((N-1)(N-2)/2) = 1.0  (normalized)</div>
+
+    <h3>Tutorial 5 - NLP: countByValue TF and distinct DF</h3>
+    <pre>import nltk
+from pyspark.sql.functions import udf
+from pyspark.sql.types import ArrayType, StructType, StructField, StringType
+
+tokenized = data.rdd.map(lambda r: (r.doc_id, r.sentence.lower().split()))
+
+# TF: countByValue produces {(doc_id, word): count}
+tf = tokenized.flatMapValues(lambda words: words).countByValue()
+
+# DF: .distinct() is REQUIRED - without it a word appearing twice
+#     in the same doc would count as 2 documents
+df_count = (tokenized.flatMapValues(lambda words: words)
+                      .distinct()
+                      .map(lambda x: (x[1], x[0]))
+                      .countByKey())   # {word: num_docs}
+
+# POS UDF returning StructType (f1=word, f2=tag)
+pos_schema = ArrayType(StructType([
+    StructField("f1", StringType()),
+    StructField("f2", StringType())
+]))
+@udf(pos_schema)
+def pos_tag_udf(words):
+    return [{"f1": w, "f2": t} for w, t in nltk.pos_tag(words)]</pre>
+
+    <h3>Tutorial 6 - Full Vocabulary, Window Generation, Keras CBOW</h3>
+    <pre>from collections import Counter
+import numpy as np
+import keras.utils as ku
+import tensorflow.keras.backend as K
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, Lambda, Dense
+from tensorflow.keras.callbacks import ModelCheckpoint
+
+PAD, UNK = "###", "???"
+word_freq = Counter(w for sent in all_sentences for w in sent)
+vocab     = [PAD, UNK] + [w for w, _ in word_freq.most_common()]
+w2i       = {w: i for i, w in enumerate(vocab)}
+i2w       = {i: w for w, i in w2i.items()}
+vocab_size = len(vocab)
+
+def texts_to_sequences(texts):
+    return [[w2i.get(w, w2i[UNK]) for w in sent] for sent in texts]
+
+PAD_IDX, WINDOW = w2i[PAD], 4   # w=4 -> input_length = 8
+
+def generate_windows(seq, w=WINDOW):
+    padded = [PAD_IDX]*w + seq + [PAD_IDX]*w
+    for i in range(w, len(padded)-w):
+        yield padded[i-w:i] + padded[i+1:i+w+1], padded[i]
+
+windows = [win for seq in encoded for win in generate_windows(seq)]
+X = np.array([w[0] for w in windows])
+y = ku.to_categorical([w[1] for w in windows], vocab_size)
+
+# EXACT Tutorial 6 parameters: dim=25, loss=categorical_crossentropy (NOT sparse)
+dim = 25
+model = Sequential([
+    Embedding(vocab_size, dim, input_length=2*WINDOW),
+    Lambda(lambda x: K.mean(x, axis=1), output_shape=(dim,)),
+    Dense(vocab_size, activation="softmax")
+])
+model.compile(loss="categorical_crossentropy", optimizer="adam")
+
+ckpt = ModelCheckpoint("{epoch:02d}.weights.h5", save_best_only=True)
+model.fit(X, y, batch_size=1000, steps_per_epoch=5, epochs=10,
+          validation_split=0.1, callbacks=[ckpt])
+
+# Export to SparkNLP embedding file
+wv = model.layers[0].get_weights()[0]   # (vocab_size, dim)
+with open("cbow.csv","w") as f:
+    for ix in range(vocab_size):
+        f.write(f"{i2w[ix]} " + " ".join(f"{v:.18e}" for v in wv[ix]) + "
+")
+
+# Word2VecData pattern
+norms     = np.linalg.norm(wv, axis=1, keepdims=True)
+normed_wv = wv / (norms + 1e-8)
+all_sims  = np.dot(normed_wv, normed_wv.T)   # (vocab_size, vocab_size)
+
+def nearest_words(word, k=10):
+    idx = w2i[word]
+    top = np.argsort(all_sims[idx])[::-1][1:k+1]
+    return [(i2w[i], float(all_sims[idx][i])) for i in top]
+
+# PySpark built-in Word2Vec feature transformer
+from pyspark.ml.feature import Word2Vec as SparkW2V
+m = SparkW2V(inputCol="normalized", outputCol="vecs", vectorSize=dim, minCount=5).fit(df)</pre>
+
+    <h3>Tutorial 7 - PySpark PageRank 7-Step Structure</h3>
+    <pre>from operator import add
+import re
+
+# Step 1: build (src, dest) tuples from HTML files
+def extract_links(content):
+    return re.findall(r'<a\s+(?:[^>]*?)href="([^"]*)"', content)
+
+# Step 2: adjacency list
+adj_list = links_rdd.groupByKey()
+
+# Step 3: vertex count (including sink-only nodes)
+N = adj_list.flatMap(lambda x: list(x[1])).union(adj_list.keys()).distinct().count()
+
+# Step 4: uniform initial ranks
+beta = 0.85
+ranks = adj_list.map(lambda x: (x[0], 1.0/N))
+
+# Steps 5-7: iterate
+def compute_contribs(record):
+    url, (neighbors, rank) = record
+    for dest in neighbors:
+        yield (dest, rank / len(neighbors))
+
+for _ in range(100):
+    contribs  = adj_list.join(ranks).flatMap(compute_contribs)
+    new_ranks = contribs.reduceByKey(add).mapValues(lambda r: beta*r + (1-beta)/N)
+    delta     = ranks.join(new_ranks).map(lambda x: abs(x[1][1]-x[1][0])).sum()
+    ranks     = new_ranks
+    if delta < 1e-6: break</pre>
+
+    <h3>Tutorial 8 - Full NetworkX API Reference</h3>
+    <pre>import networkx as nx
+
+# File I/O
+g = nx.read_edgelist("network_demo.csv", delimiter=",", nodetype=int)
+nx.write_edgelist(g, "output.csv")
+
+# Graph modification
+g.add_nodes_from([10, 11])        # isolated nodes
+g.add_nodes_from(g2)              # copy nodes only (no edges) from g2
+g.add_edges_from(g1.edges)        # copy edges from g1
+g.remove_node(5)
+g.remove_edge(1, 2)
+print(g.is_directed())
+
+# Random graph
+g_rand = nx.fast_gnp_random_graph(n=8, p=0.5, seed=10, directed=False)
+
+# Custom centrality using all_pairs_shortest_path
+all_paths = dict(nx.all_pairs_shortest_path(G))  # {src: {dst: [node_list]}}
+# length = len(path_list) - 1
+
+def custom_closeness(G):
+    paths = dict(nx.all_pairs_shortest_path(G))
+    n = len(G)
+    res = {}
+    for v in G:
+        s = sum(len(paths[v][u])-1 for u in G if u!=v and u in paths[v])
+        res[v] = (n-1)/s if s > 0 else 0
+    return res
+
+# draw_network: scale node sizes by centrality value
+def draw_network(G, cdict, pos=None):
+    import matplotlib.pyplot as plt
+    pos = pos or nx.spring_layout(G)
+    mx = max(cdict.values())
+    sizes = [v**2*10000 if mx < 1 else v*100 for v in cdict.values()]
+    nx.draw(G, pos, node_size=sizes, with_labels=True)
+    plt.show()
+
+# Karate club: 34 nodes, 78 edges (standard community detection benchmark)
+K = nx.karate_club_graph()
+print(K.number_of_nodes(), K.number_of_edges())   # 34  78
+
+dc = nx.degree_centrality(K)          # normalised by (n-1)
+cc = nx.closeness_centrality(K)
+bc = nx.betweenness_centrality(K, normalized=True)
+ec = nx.eigenvector_centrality(K, max_iter=100)
+hc = nx.harmonic_centrality(K)        # use for disconnected graphs</pre>
+
+    <h3>ROUGE Evaluation Metrics (Text Summarization)</h3>
+    <div class="formula">ROUGE = Recall-Oriented Understudy for Gisting Evaluation
+Range [0, 1]; higher = better. Three variants:
+
+ROUGE-N: n-gram overlap (N=1 unigrams, N=2 bigrams)
+  Recall    = matching n-grams / n-grams in reference
+  Precision = matching n-grams / n-grams in candidate
+  F1        = 2 x P x R / (P + R)
+
+ROUGE-L: Longest Common Subsequence (word order matters but gaps allowed)
+  Recall    = LCS length / reference length
+  Precision = LCS length / candidate length
+
+ROUGE-S: skip-bigram overlap (not required for this course)</div>
+
+    <h4>ROUGE Worked Examples</h4>
+    <div class="formula">Candidate:  "Summarization is cool"
+Reference:  "Summarization is beneficial and cool"
+
+ROUGE-1 (unigrams): matching = {Summarization, is, cool} = 3
+  Recall    = 3/5 = 0.60
+  Precision = 3/3 = 1.00
+  F1        = 2x0.60x1.00 / (0.60+1.00) = 0.75
+
+ROUGE-2 (bigrams): candidate bigrams = {Summ-is, is-cool}
+  Reference bigrams = {Summ-is, is-beneficial, beneficial-and, and-cool}
+  Matching = {Summ-is} = 1
+  Recall    = 1/4 = 0.25,  Precision = 1/2 = 0.50
+  F1        = 2x0.25x0.50 / (0.25+0.50) = 0.33
+
+ROUGE-L: LCS = {Summarization, is, cool} length=3
+  Recall = 3/5 = 0.60,  Precision = 3/3 = 1.00,  F1 = 0.75
+
+Rule: when multiple references exist, take the BEST score across references.</div>
+
+    <h3>T01 - Pandas Extended API</h3>
+    <pre>import pandas as pd
+
+# Series from dict - keys become the index
+s = pd.Series({"A": 1, "B": 2, "C": 3})
+
+# Rename a Series
+course_names = pd.Series(["Python", "Spark"]).rename("Tools")
+
+# df["col"]  -> Series (1D),  df[["col"]] -> DataFrame (2D)
+# This is a common MCQ trap - double brackets keep the DataFrame wrapper
+
+# fillna and dropna with axis and how
+df.fillna(0)                     # replace all NaN with 0
+df.dropna(axis=0, how="any")     # drop rows with ANY NaN (default)
+df.dropna(axis=0, how="all")     # drop rows only if ALL values are NaN
+df.dropna(axis=1)                # drop columns with any NaN
+df.dropna(subset=["col"])        # drop rows where specific column is NaN
+
+# merge - all four join types
+pd.merge(df1, df2, how="inner")  # only rows in BOTH (default)
+pd.merge(df1, df2, how="left")   # all left rows, NaN where no right match
+pd.merge(df1, df2, how="right")  # all right rows, NaN where no left match
+pd.merge(df1, df2, how="outer")  # all rows from both, NaN to fill gaps</pre>
+
+    <h3>T04 - Extended Spark DataFrame API</h3>
+    <pre>from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType
+from pyspark.sql.functions import col, when
+
+# Inspect schema
+df.dtypes            # list of (column_name, type_string) tuples
+df.printSchema()     # tree-format schema printout
+
+# Rename column
+df = df.withColumnRenamed("old_name", "new_name")
+
+# Create DataFrame from Python data with explicit schema
+schema = StructType([
+    StructField("StudentID", StringType(), True),
+    StructField("Major",     StringType(), True),
+    StructField("GPA",       FloatType(),  True),
+])
+df = ss.createDataFrame([["S001","CS",3.8],["S002","IS",3.5]], schema)
+
+# Create from Pandas DataFrame
+df_spark = ss.createDataFrame(pdf)   # pdf is a Pandas DataFrame
+
+# Create from list of lists (no schema - inferred or positional)
+df = ss.createDataFrame([["a",1],["b",2]], ["letter","number"])
+
+# Chained select -> toDF to pick and rename simultaneously
+df2 = df.select("mpg","cyl").toDF("mpg_1","cyl_1")
+
+# dict-style aggregation
+df.agg({"mpg": "max"}).show()    # returns DataFrame with column named max(mpg)
+df.agg({"mpg": "mean", "hp": "max"}).show()
+
+# mapValues returning a list
+kvRDD.mapValues(lambda x: [x, x*10]).collect()
+
+# Export DataFrame
+df.write.json("output.json")
+df.write.csv("output.csv", header=True)
+df.write.parquet("output.parquet")
+
+# Filter key-value RDD by key or value
+kvRDD.filter(lambda kv: kv[0] < 5)   # filter by key
+kvRDD.filter(lambda kv: kv[1] > 10)  # filter by value
+
+# ROUGE-L via UDF (Assignment 2 pattern)
+from rouge_score import rouge_scorer
+from pyspark.sql.functions import udf
+from pyspark.sql.types import FloatType
+
+def compute_rouge_l(sent_a, sent_b):
+    scorer = rouge_scorer.RougeScorer(["rougeL"])
+    return float(scorer.score(sent_a, sent_b)["rougeL"].fmeasure)
+
+rouge_udf = udf(compute_rouge_l, FloatType())
+df = df.withColumn("similarity", rouge_udf(col("sentence_a"), col("sentence_b")))</pre>
 <!-- ============================================================ QUICK SUMMARY ============================================================ -->
 <div class="section" id="summary">
   <div class="section-header">
