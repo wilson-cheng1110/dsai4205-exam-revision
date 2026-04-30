@@ -276,13 +276,96 @@ Reduce: ("hello", 2), ("world", 1)</div>
       <tr><td>Java-heavy API</td><td>Python, Scala, Java, R APIs</td></tr>
     </table>
 
-    <h3>Dask</h3>
+    <h3>Dask — Block Algorithms</h3>
+    <p>Dask solves out-of-memory problems by <strong>splitting arrays/DataFrames into chunks</strong> and applying block algorithms:</p>
+    <div class="formula">Example: sum of a 4×4 array split into four 2×2 chunks
+  Step 1: Each worker computes sum of its chunk independently
+            chunk_A=10, chunk_B=26, chunk_C=18, chunk_D=42
+  Step 2: Combine chunk results → total = 10+26+18+42 = 96
+
+Key principle: "Divide data → process chunk → combine results"
+Worker = distinct server / local machine / CPU core</div>
+
+    <h3>Dask Task Graph</h3>
+    <p>Every Dask operation builds a <strong>task graph</strong> before executing anything:</p>
     <ul>
-      <li>Python-native parallel computing — extends NumPy/Pandas to datasets larger than RAM.</li>
-      <li><strong>Lazy evaluation</strong>: builds a task graph, executes only on <code>.compute()</code>.</li>
-      <li><strong>Block algorithms</strong>: splits computation into chunks (~100 MB – 1 GB recommended).</li>
-      <li>Rechunking is expensive — choose chunk size wisely upfront.</li>
+      <li><strong>Nodes</strong>: individual tasks (e.g., compute chunk sum)</li>
+      <li><strong>Edges</strong>: dependencies between tasks (output of one feeds input of next)</li>
+      <li>Graph is built lazily — no computation until <code>.compute()</code></li>
+      <li>Visualise with <code>result.visualize()</code> (uses Graphviz)</li>
     </ul>
+
+    <h3>Dask Chunk Specification (4 ways)</h3>
+    <pre>import dask.array as da
+
+# 1. Same size for all dimensions
+arr = da.ones((10000, 12000), chunks=1000)         # 1000 elements each dim
+
+# 2. Different size per dimension
+arr = da.ones((10000, 12000), chunks=(5000, 4000))
+
+# 3. Dict specification per dimension
+arr = da.ones((10000, 12000), chunks={0: 1000, 1: 2000})
+
+# 4. Fully explicit block sizes (tuple of tuples)
+arr = da.ones((10000, 12000), chunks=((5000,5000), (4000,4000,4000,4000)))
+
+# Rechunk after creation (EXPENSIVE — avoid if possible)
+arr.rechunk({0: -1, 1: 100})  # -1 = keep entire dimension as one chunk
+# WARNING: 86ms → 7min 13s performance difference from bad rechunk choice</pre>
+    <div class="callout warning"><strong>Chunk size guideline:</strong> 100 MB – 1 GB per chunk. Too small = task graph overhead. Too large = out-of-memory.</div>
+
+    <h3>MapReduce — Detailed Walkthrough</h3>
+    <p>Input: 3 documents spread across 3 mappers. Each runs independently in parallel.</p>
+    <div class="formula">Input documents:
+  Mapper 1: "I often repeat repeat"
+  Mapper 2: "I do not not"
+  Mapper 3: "repeat after me"
+
+Map phase (each mapper emits (word, 1) for every word):
+  Mapper 1: (I,1) (often,1) (repeat,1) (repeat,1)
+  Mapper 2: (I,1) (do,1) (not,1) (not,1)
+  Mapper 3: (repeat,1) (after,1) (me,1)
+
+Shuffle phase (group by key — sent across network):
+  (I,     [1, 1])
+  (often, [1])
+  (repeat,[1, 1, 1])
+  (do,    [1])
+  (not,   [1, 1])
+  (after, [1])
+  (me,    [1])
+
+Reduce phase (sum the list):
+  (I, 2)  (repeat, 3)  (not, 2)  ...
+
+Performance cost: ALL intermediate data written to HDFS between map and reduce
+                  (necessary for fault tolerance — but disk I/O makes it slow)
+Spark fix: keep intermediate data in MEMORY → 10–100× faster for iterative jobs</div>
+
+    <h3>Dask Distributed Client</h3>
+    <pre>from dask.distributed import Client
+
+# Start local cluster (4 workers)
+client = Client(n_workers=4)
+
+# Dashboard — view task graph, memory, workers
+# http://127.0.0.1:8787/status
+
+# Cache intermediate result in distributed memory
+ddf_jfk = ddf[ddf['Origin'] == 'JFK']
+ddf_jfk = ddf_jfk.persist()   # keeps result in RAM across multiple operations</pre>
+
+    <h3>Zarr — Chunked Array Storage</h3>
+    <pre>import dask.array as da
+
+arr = da.random.normal(size=(10000, 10000), chunks=(1000, 1000))
+
+# Save to Zarr (efficient chunked binary format)
+arr.to_zarr('my_array.zarr')
+
+# Load back
+arr2 = da.from_zarr('my_array.zarr')</pre>
   </div>
 </div>
 
@@ -317,6 +400,30 @@ Reduce: ("hello", 2), ("world", 1)</div>
         </ul>
       </div>
     </div>
+
+    <h3>RDD — Data Lineage &amp; Fault Tolerance</h3>
+    <div class="formula">Problem: a node fails mid-computation — how to recover?
+
+RDD solution — Data Lineage:
+  • Record the OPERATIONS (not the data) applied to each partition
+  • Each RDD knows: "I was derived from parent X by operation F"
+  • Recovery: re-run F on the surviving partitions of X → reconstruct lost partition
+  • Cost: cheap — just replay operations; no expensive data replication needed
+
+Immutability principle:
+  • RDDs CANNOT be modified — every operation creates a new RDD
+  • This makes lineage tracking trivial (deterministic, no side effects)</div>
+
+    <h3>RDD — Granularity of Data Flow</h3>
+    <table>
+      <tr><th>Mode</th><th>Description</th><th>When to use</th></tr>
+      <tr><td><strong>Whole Dataset</strong></td><td>Entire dataset through one transformation at once</td><td>Small data that fits in memory</td></tr>
+      <tr><td><strong>Row</strong></td><td>Each row processed independently</td><td>Flexible but slower (high task overhead)</td></tr>
+      <tr><td><strong>Partition</strong> ✓</td><td>User-defined number of partitions; each worker handles one partition</td><td>Recommended — balances parallelism and overhead</td></tr>
+    </table>
+    <pre>rdd.getNumPartitions()          # check how many partitions
+rdd.repartition(10)             # increase partitions (shuffle)
+rdd.coalesce(2)                 # reduce partitions (no shuffle)</pre>
 
     <h3>Transformations vs Actions</h3>
     <table>
@@ -382,6 +489,7 @@ Reduce: ("hello", 2), ("world", 1)</div>
       <tr><td><code>groupBy(f)</code></td><td>Transform</td><td>Group by key function result</td><td>[1,2,3] by x%2 → {0:[2], 1:[1,3]}</td></tr>
       <tr><td><code>reduceByKey(f)</code></td><td>Transform</td><td>Aggregate values with same key</td><td>[(a,1),(a,2)] → [(a,3)]</td></tr>
       <tr><td><code>mapValues(f)</code></td><td>Transform</td><td>Apply f to values only (key unchanged)</td><td>[(a,2)] → [(a,4)] with f=x²</td></tr>
+      <tr><td><code>flatMapValues(f)</code></td><td>Transform</td><td>Like mapValues but flattens list output into individual elements</td><td>[(a,[1,2])] → [(a,1),(a,2)]</td></tr>
       <tr><td><code>sortBy(f)</code></td><td>Transform</td><td>Sort by key function</td><td>sort by value descending</td></tr>
       <tr><td><code>randomSplit([w1,w2])</code></td><td>Transform</td><td>Split RDD by weights</td><td>[0.8, 0.2] → train/test</td></tr>
       <tr><td><code>collect()</code></td><td>Action</td><td>Return all elements as Python list</td><td>triggers computation</td></tr>
@@ -400,6 +508,67 @@ Reduce: ("hello", 2), ("world", 1)</div>
       <tr><td><code>rightOuterJoin()</code></td><td>All keys from right</td><td>→ [(3,(b,c))]</td></tr>
       <tr><td><code>subtractByKey()</code></td><td>Keys in left NOT in right</td><td>→ [(1,a)]</td></tr>
     </table>
+
+    <h3>map() vs mapValues() vs flatMapValues()</h3>
+    <pre>rdd = sc.parallelize([('a', [1, 2, 3]), ('b', [4, 5])])
+
+# map() — applied to entire element (key + value together)
+rdd.map(lambda x: (x[0], len(x[1]))).collect()
+# [('a', 3), ('b', 2)]
+
+# mapValues() — applied to VALUE only; key preserved unchanged
+rdd.mapValues(lambda v: sum(v)).collect()
+# [('a', 6), ('b', 9)]
+
+# flatMapValues() — like mapValues but FLATTENS the list output
+rdd.flatMapValues(lambda v: v).collect()
+# [('a',1), ('a',2), ('a',3), ('b',4), ('b',5)]  ← each item becomes its own row</pre>
+
+    <h3>More DataFrame Patterns</h3>
+    <pre>from pyspark.sql import Row
+from pyspark.sql.functions import col, desc
+
+# Create DataFrame from Python list
+data = [('Alice', 30), ('Bob', 25)]
+df = spark.createDataFrame(data, ['name', 'age'])
+
+# Rename columns with toDF()
+rdd = sc.parallelize([('A', 1), ('B', 2)])
+df  = rdd.toDF(['letter', 'number'])
+
+# Join two DataFrames
+df1.join(df2, 'id', 'inner').show()    # inner join on column 'id'
+df1.join(df2, df1.id == df2.id, 'left').show()  # left join with explicit condition
+
+# Sort descending (multi-column)
+df.orderBy(col('price').desc(), col('id').desc()).show()
+
+# Get unique values
+df.select('category').distinct().show()
+
+# Convert DataFrame → RDD (each row becomes a Row object)
+rdd = df.rdd
+rdd.map(lambda row: (row['name'], row['age'])).collect()
+
+# leftOuterJoin — replace None for missing values
+joined = rdd1.leftOuterJoin(rdd2)
+result = joined.map(lambda x: (x[0], x[1][0], x[1][1] if x[1][1] is not None else 'MISSING'))</pre>
+
+    <h3>Pandas — More Patterns</h3>
+    <pre>import pandas as pd
+
+# apply() with row-wise function (axis=1)
+df['full_name'] = df.apply(lambda row: row['first'] + ' ' + row['last'], axis=1)
+
+# reset_index() — convert grouped result index back to regular column
+grouped = df.groupby('dept')['salary'].mean().reset_index()
+# grouped now has 'dept' as a regular column, not the index
+
+# GroupBy then count
+df.groupby('category').count()
+
+# GroupBy multiple columns
+df.groupby(['year','month'])['sales'].sum().reset_index()</pre>
 
     <h3>SparkSession Setup</h3>
     <pre>from pyspark.sql import SparkSession
@@ -796,11 +965,41 @@ tokenized.flatMapValues(lambda x: x)   # one (docID, word) per word
     <p><strong>Example:</strong> "kitten" → "sitting" = <strong>3 edits</strong> (k→s, e→i, insert g)</p>
 
     <h3>Byte Pair Encoding (BPE) — Subword Tokenization</h3>
-    <div class="step"><div class="step-num">1</div><div>Start: split all words into individual characters.</div></div>
+    <p>BPE has three components working together:</p>
+    <table>
+      <tr><th>Component</th><th>Role</th><th>Input → Output</th></tr>
+      <tr><td><strong>Token Learner</strong></td><td>Processes training corpus to build vocabulary of subword merges</td><td>Raw text → merge rules + vocabulary</td></tr>
+      <tr><td><strong>Token Segmenter</strong> (Encoder)</td><td>Uses learned merge rules to tokenize new sentences</td><td>New text → token sequence</td></tr>
+      <tr><td><strong>Token Merger</strong> (Decoder)</td><td>Reverses tokenization — reconstructs original sentence</td><td>Token sequence → original text</td></tr>
+    </table>
+    <div class="step"><div class="step-num">1</div><div>Start: split all words into characters + special end-of-word symbol <strong>Ġ</strong> (or ##) marking word boundaries.</div></div>
     <div class="step"><div class="step-num">2</div><div>Count all adjacent symbol pairs in the corpus.</div></div>
     <div class="step"><div class="step-num">3</div><div>Merge the most frequent pair into a new symbol; add to vocabulary.</div></div>
     <div class="step"><div class="step-num">4</div><div>Repeat until desired vocabulary size reached (or no more frequent pairs).</div></div>
-    <p>Handles rare and OOV (out-of-vocabulary) words gracefully. Used in GPT, BERT.</p>
+
+    <h4>BPE Worked Example</h4>
+    <div class="formula">Corpus: hug(×10), pug(×5), pun(×12), bun(×4), hugs(×5)
+
+Initial vocabulary (characters): h u g p n b s Ġ
+Initial tokenization:
+  Ġhug → [Ġ,h,u,g]   Ġpug → [Ġ,p,u,g]   Ġpun → [Ġ,p,u,n]
+  Ġbun → [Ġ,b,u,n]   Ġhugs→ [Ġ,h,u,g,s]
+
+Most frequent pair: (u,g) → appears in hug(10)+pug(5)+hugs(5) = 20 times
+Merge 1: u+g → ug     new vocab: {ug, ...}
+
+Next most frequent pair: (Ġ,h) → appears in hug(10)+hugs(5) = 15 times
+Merge 2: Ġ+h → Ġh    new vocab: {ug, Ġh, ...}
+
+Next: (Ġh,ug) → 15 times
+Merge 3: Ġh+ug → Ġhug  new vocab: {ug, Ġh, Ġhug, ...}
+
+Final tokenization of "hug pun":
+  Ġhug → token_id=7   Ġp → token_id=9   u → token_id=3   n → token_id=5
+  Sentence: [7, 9, 3, 5]
+
+OOV handling: unknown words split into known subword tokens (never truly OOV)</div>
+    <p>Used in GPT, BERT, and all modern LLMs. Balances vocabulary size vs coverage.</p>
   </div>
 </div>
 
@@ -902,11 +1101,13 @@ Loss: minimize NLL = -log P(c | context)
 Key: context vectors V_o are used as the word embeddings in CBOW
      (unlike Skip-gram where input vectors v_c are preferred)</div>
 
-    <h3>Skip-gram Assumptions</h3>
-    <ul>
-      <li><strong>Window independence:</strong> each context word is predicted independently given the center word.</li>
-      <li><strong>Position independence:</strong> word order within the window does not matter — same prediction regardless of position.</li>
-    </ul>
+    <h3>Skip-gram — Three Formal Assumptions</h3>
+    <ol>
+      <li><strong>i.i.d. windows:</strong> each context window is an independent, identically distributed sample. Objective sums log-probabilities across all windows.</li>
+      <li><strong>Conditional independence:</strong> context words are predicted independently given the center word. P(o1,o2,…|c) = ∏ P(oi|c). No word depends on another context word.</li>
+      <li><strong>Position independence:</strong> word order / distance within the window is ignored — same prediction whether a word is 1 or m steps away from center.</li>
+    </ol>
+    <div class="callout warning">These assumptions are clearly wrong linguistically — but they make optimization tractable and the resulting embeddings are still very good in practice.</div>
 
     <h3>GloVe — Global Vectors (Stanford)</h3>
     <p>An alternative to Word2Vec that uses <strong>global co-occurrence statistics</strong> from the full corpus matrix.</p>
@@ -970,6 +1171,30 @@ Output: P(center_word | context) = softmax(W · x + b)</div>
       <tr><td>Backpropagation</td><td>Chain rule to compute gradients of loss w.r.t. each parameter</td></tr>
       <tr><td>Embedding layer</td><td>Lookup table mapping token index → dense vector</td></tr>
     </table>
+
+    <h3>CBOW — Numerical Example</h3>
+    <div class="formula">Vocabulary: {cat=0, sit=1, on=2, mats=3}   (size V=4)
+Sentence: "cat sit on mats"   Center word = "on" (index 2)
+Context words (window=1): "sit" (index 1), "mats" (index 3)
+
+One-hot inputs:
+  v_sit  = [0,1,0,0]
+  v_mats = [0,0,0,1]
+
+Embedding lookup (d=3 dimensions, random W):
+  e_sit  = W[1] = [0.2, -0.1, 0.5]
+  e_mats = W[3] = [-0.3, 0.4, 0.1]
+
+Mean pooling (CBOW input):
+  x = (e_sit + e_mats) / 2 = [-0.05, 0.15, 0.3]
+
+Output layer (dot with output matrix U):
+  logits = U · x  →  e.g., [0.1, 0.8, 0.3, -0.2]
+
+Softmax → probabilities:
+  P = softmax([0.1, 0.8, 0.3, -0.2]) = [0.18, 0.36, 0.22, 0.13]
+                                          cat   sit   on   mats
+  Predicted center word: "sit" (highest)   ← wrong → compute loss → backprop → update W, U</div>
 
     <h3>From Word2Vec to Transformers (conceptual)</h3>
     <ul>
@@ -1086,6 +1311,52 @@ Steps in code:
        )</div>
 
     <div class="callout warning"><strong>Common exam question:</strong> Given a small graph, compute PageRank by hand using one or two iterations of power iteration. Know how to build matrix M and apply the Google formula.</div>
+
+    <h3>Spider Trap — Numerical Example</h3>
+    <div class="formula">Graph: A→B, B→A, B→m, m→m   (m is a spider trap — links only to itself)
+Start: r = [1/3, 1/3, 1/3]
+
+Iter 1 (no teleport):  r_A = r_B/2 = 1/6
+                        r_B = r_A   = 1/3
+                        r_m = r_B/2 + r_m = 1/6 + 1/3 = 1/2
+Iter 2:                r_A → 1/6,  r_B → 1/6,  r_m → 2/3
+...
+Converges to:          r = [0, 0, 1]   ← ALL rank absorbed by trap!
+
+Fix: teleport with β=0.85 — surfer occasionally escapes to random page</div>
+
+    <h3>Dead End — Numerical Example</h3>
+    <div class="formula">Graph: A→B, B→C, C→∅   (C is a dead end — no outgoing links)
+Start: r = [1/3, 1/3, 1/3]
+
+Iter 1 (no teleport):  r_A = 0       (nobody links to A)
+                        r_B = r_A   = 1/3
+                        r_C = r_B   = 1/3
+After 1 iter: r = [0, 1/3, 1/3]   sum = 2/3 — rank leaked out!
+Iter 2:        r = [0, 0, 1/3]
+...
+Converges to:  r = [0, 0, 0]       ← rank disappears entirely!
+
+Fix: treat dead-end as teleporting to all pages uniformly</div>
+
+    <h3>PageRank Convergence — Numerical Trace (β=0.8)</h3>
+    <div class="formula">Graph: A→B, A→C, B→C, C→A   (same 3-node graph as worked example)
+
+      A    B    C
+M = [ 0    0    1  ]
+    [1/2   0    0  ]
+    [1/2   1    0  ]
+
+Google Matrix (β=0.8):  A = 0.8·M + 0.2·[1/3]
+
+Iteration 0:  r = [1/3,   1/3,   1/3 ]
+Iteration 1:  r = [0.33,  0.20,  0.46]
+Iteration 2:  r = [0.43,  0.19,  0.38]
+Iteration 3:  r = [0.36,  0.23,  0.41]
+...
+Converges:    r = [7/33,  5/33, 21/33] ≈ [0.212, 0.152, 0.636]
+
+C has highest PageRank because it receives links from both A and B.</div>
 
     <h3>Worked Example (3-node graph)</h3>
     <div class="formula">Nodes: A, B, C
@@ -1881,6 +2152,137 @@ from networkx.algorithms.community import girvan_newman
 comp = girvan_newman(G)
 communities = tuple(next(comp))
 print(communities)</pre>
+
+    <h3>Sparse Vector Operations (CountVectorizer output)</h3>
+    <pre>from pyspark.sql.functions import udf
+from pyspark.sql.types import ArrayType, StringType
+from pyspark.ml.linalg import SparseVector
+
+# CountVectorizer output format: SparseVector(vocabSize, [indices], [values])
+# Example: SparseVector(5, [0, 2], [1.0, 2.0]) means:
+#   - vocab size = 5 words
+#   - word at index 0 appears 1 time, word at index 2 appears 2 times
+
+# Convert sparse vector to dense array
+vec = SparseVector(5, [0, 2], [1.0, 2.0])
+dense = vec.toArray()      # [1.0, 0.0, 2.0, 0.0, 0.0]
+indices = vec.indices      # [0, 2]
+
+# UDF to extract top-k terms from TF-IDF vector using vocabulary
+def terms_idx2term(vocab):
+    def f(indices):
+        return [vocab[i] for i in indices]
+    return udf(f, ArrayType(StringType()))
+
+vocab = cv_model.vocabulary   # list of terms from fitted CountVectorizer
+termUDF = terms_idx2term(vocab)
+df.withColumn('terms', termUDF(df['tfidf_indices']))</pre>
+
+    <h3>UDF with Complex Return Type (ArrayType / StructType)</h3>
+    <pre>from pyspark.sql.functions import udf
+from pyspark.sql.types import ArrayType, StructType, StructField, StringType, IntegerType
+import nltk
+
+# UDF returning list of (word, tag) structs
+pos_schema = ArrayType(StructType([
+    StructField("word", StringType()),
+    StructField("tag",  StringType())
+]))
+
+@udf(pos_schema)
+def pos_tag_udf(words):
+    tagged = nltk.pos_tag(words)
+    return [{"word": w, "tag": t} for w, t in tagged]
+
+df.withColumn("pos_tags", pos_tag_udf(df["words"])).show()</pre>
+
+    <h3>Manual TF-IDF via RDD</h3>
+    <pre>import math
+
+# Tokenize: (doc_id, [word1, word2, ...])
+tokenized = data.rdd.map(lambda r: (r.doc_id, r.sentence.lower().split()))
+
+# TF: count (doc_id, word) occurrences
+tf = tokenized.flatMapValues(lambda words: words) \
+              .countByValue()   # {(doc_id, word): count}
+
+# DF: how many documents contain each word
+df_count = tokenized.flatMapValues(lambda words: set(words)) \
+                    .map(lambda x: (x[1], x[0])) \
+                    .countByKey()   # {word: num_docs}
+
+# TF-IDF
+N = tokenized.count()   # total docs
+tfidf = {(doc, word): count * math.log((N + 1) / (df_count[word] + 1))
+         for (doc, word), count in tf.items()}</pre>
+
+    <h3>Word2Vec — Nearest Words (Cosine Similarity)</h3>
+    <pre>import numpy as np
+
+# After training, extract embedding matrix
+W = model.layers[0].get_weights()[0]   # shape: (vocab_size, embed_dim)
+
+# L2-normalize all vectors for cosine similarity
+norms = np.linalg.norm(W, axis=1, keepdims=True)
+W_norm = W / (norms + 1e-8)
+
+# Pre-compute full similarity matrix (can be large!)
+sim_matrix = np.dot(W_norm, W_norm.T)   # (vocab_size, vocab_size)
+
+def nearest_words(word, w2i, i2w, k=5):
+    idx = w2i[word]
+    sims = sim_matrix[idx]              # similarity to all words
+    top_k = np.argsort(sims)[::-1][1:k+1]  # skip self (index 0)
+    return [(i2w[i], sims[i]) for i in top_k]
+
+def compare_words(w1, w2, w2i):
+    i1, i2 = w2i[w1], w2i[w2]
+    return float(np.dot(W_norm[i1], W_norm[i2]))   # cosine similarity
+
+# Analogy: king - man + woman ≈ queen
+v = W_norm[w2i['king']] - W_norm[w2i['man']] + W_norm[w2i['woman']]
+sims = np.dot(W_norm, v)
+print(i2w[np.argsort(sims)[::-1][0]])   # should be 'queen'</pre>
+
+    <h3>Tutorial 8 — NetworkX Graph Construction Exercises</h3>
+    <pre>import networkx as nx
+
+# Star graph: node 0 connected to nodes 1-7
+g8 = nx.Graph()
+g8.add_node(0)
+for i in range(1, 8):
+    g8.add_edge(0, i)
+
+# Circle graph: 9 nodes in a ring
+g9 = nx.cycle_graph(9)
+
+# Complete graph: every pair connected
+g10 = nx.complete_graph(10)
+
+# Linear chain: 11 nodes in a line
+g11 = nx.path_graph(11)
+
+# Useful measures as functions
+def avg_degree(g):
+    return 2 * g.number_of_edges() / g.number_of_nodes()
+
+def get_density(g):
+    N = g.number_of_nodes()
+    return 2 * g.number_of_edges() / (N * (N - 1))
+
+# Visualise with node size proportional to centrality
+def draw_network(G, centrality_dict):
+    import matplotlib.pyplot as plt
+    pos = nx.spring_layout(G)
+    sizes = []
+    for node in G.nodes():
+        v = centrality_dict.get(node, 0)
+        sizes.append(v**2 * 10000 if v < 1 else v * 100)
+    nx.draw(G, pos, node_size=sizes, with_labels=True)
+    plt.show()
+
+# Average clustering coefficient
+print(nx.average_clustering(g9))   # global clustering coefficient</pre>
 
     <h3>Tutorial 6 — Keras Word Embedding Layer</h3>
     <pre>from tensorflow.keras.models import Sequential
