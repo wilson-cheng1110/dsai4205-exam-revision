@@ -11,7 +11,7 @@
 |---|---|
 | `DSAI4205_Exam_Review.html` | **Start here** — full colour-coded exam notes, sticky nav, print-to-PDF ready |
 | `DSAI4205_Exam_Review.docx` | Same content formatted for Word / direct printing |
-| `make_docx.py` | Python script that regenerates the `.docx` from scratch (python-docx) |
+| `gen_docx.py` | Python script that regenerates the `.docx` from scratch (python-docx + BeautifulSoup) |
 | `Tutorial_1…9_*.ipynb` | Official tutorial notebooks (Pandas → Dask → Spark → NLP → PageRank → RecSys) |
 | `LT1…LT10.pptx` | Original lecture slides |
 | `T01…T04 Solution.pdf` | Tutorial solution PDFs |
@@ -47,8 +47,8 @@ xdg-open DSAI4205_Exam_Review.html   # Linux
 
 To regenerate the `.docx` after edits:
 ```bash
-pip install python-docx
-python make_docx.py
+pip install python-docx beautifulsoup4
+python gen_docx.py
 ```
 
 ---
@@ -80,6 +80,45 @@ Matrix factorize:   R ≈ U·V^T  →  r̂_ui = u_i^T · v_j
 8. Collaborative vs content-based filtering + ALS
 9. ACID vs BASE; strong vs eventual consistency
 10. MapReduce 5 steps + word count; HDFS characteristics
+
+---
+
+## 📖 How to Revise This Subject
+
+### 1. Prioritise by exam weight
+The high-yield topics (most likely to be tested numerically) are:
+- PageRank power iteration + spider trap/dead-end fixes (L7)
+- TF-IDF calculation by hand (L5)
+- Word analogy arithmetic / cosine similarity (L6)
+- Betweenness centrality worked example (L8)
+- Collaborative filtering prediction formula (L10)
+- Levenshtein DP table (L5)
+
+### 2. Use the HTML for active recall
+Open `DSAI4205_Exam_Review.html` in a browser. Use the checkboxes to track what you've covered. The search bar helps when you remember a term but not which lecture it's in.
+
+### 3. Do the numerical traces from memory
+Don't just read — cover the answer and redo:
+- 3-node PageRank iteration by hand (convergence trace is in L7)
+- TF-IDF for a 3-doc mini corpus
+- Fill a Levenshtein DP table for two short words
+- CBOW numerical forward pass
+
+### 4. Know the "why" behind each design choice
+Dr. Fong's exams tend to ask justification questions:
+- Why does Spark beat MapReduce? (in-memory DAG vs disk I/O)
+- Why use item-item CF over user-user? (stability)
+- Why add teleportation to PageRank? (spider traps + dead ends)
+- Why BPE over fixed vocabulary? (handles unknown words)
+
+### 5. Use the DOCX for offline reading
+The DOCX has ELI5 for every concept — good for a first pass on unfamiliar topics or reviewing on your phone/tablet without a browser.
+
+### 6. Do past tutorials without looking
+T03 (RDD word count), T04 (SparkSQL), T07 (PageRank in PySpark), T08 (NetworkX centrality) — if you can write these from scratch you're in good shape.
+
+**Quick order if time is short:**
+`L7 → L5 → L6 → L8 → L3 → L10 → L9 → L4 → L2 → L1`
 
 ---
 
