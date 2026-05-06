@@ -436,6 +436,11 @@ mark.srch { background: #fef08a; color: #1e293b; border-radius: 2px; padding: 0 
       <span class="sn-count" id="cnt-summary">0/0</span>
       <div class="sn-bar"><div class="sn-fill" id="fill-summary" style="width:0%"></div></div>
     </a>
+    <a class="sn-item" href="#exam" onclick="scrollToSection('exam');return false;" style="border-left:3px solid #ef4444;">
+      <span class="sn-label" style="color:#ef4444;font-weight:700;">🎯 Exam Format &amp; Dr. Fong's Tips</span>
+      <span class="sn-count" id="cnt-exam">0/0</span>
+      <div class="sn-bar"><div class="sn-fill" id="fill-exam" style="width:0%;background:#ef4444;"></div></div>
+    </a>
     </nav>
   </aside>
 
@@ -3859,7 +3864,148 @@ df = df.withColumn("similarity", rouge_udf(col("sentence_a"), col("sentence_b"))
         <li>Collaborative vs content-based filtering</li>
       </ol>
     </div>
-    </div><!-- /container -->
+    </div><!-- /body-summary -->
+  </div><!-- /summary card -->
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="section-card" id="exam" data-section="exam">
+    <div class="section-hdr" onclick="toggleSection('exam')" style="background:linear-gradient(135deg,#7f1d1d,#991b1b);">
+      <div class="section-num" style="background:#ef4444;">!</div>
+      <div class="section-title" style="color:#fef2f2;">Exam Format &amp; Dr. Fong's Tips (Apr 11 Lecture)</div>
+      <div class="section-right">
+        <span class="section-pct" id="pct-exam" style="color:#fca5a5;">0%</span>
+        <span class="section-chevron" id="chev-exam" style="color:#fca5a5;">▼</span>
+      </div>
+    </div>
+    <div class="section-body" id="body-exam">
+
+    <h3>Exam Structure (confirmed by Dr. Fong)</h3>
+    <table>
+      <tr><th>Component</th><th>Details</th></tr>
+      <tr><td><strong>Section A — MCQ</strong></td><td>22 multiple-choice questions, 1 mark each</td></tr>
+      <tr><td><strong>Section B — Long Questions</strong></td><td>Problem solving, scenario analysis, computations</td></tr>
+      <tr><td><strong>Programming</strong></td><td>~10% only (reduced from 30% in Semester 1). RDD-based only — NOT DataFrame.</td></tr>
+      <tr><td><strong>Past paper</strong></td><td>Available on BEPA — but Sem 1 coverage is different (had 30% programming, L10 in long question)</td></tr>
+    </table>
+    <div class="callout warn"><strong>Key change from Sem 1:</strong> Programming reduced 30% → 10%. Recommendation Systems moved out of long question. Only 10% programming — all RDD (not DataFrame).</div>
+
+    <h3>Topic-by-Topic Exam Scope</h3>
+    <table>
+      <tr><th>Lecture</th><th>In Long Q?</th><th>In MCQ?</th><th>What Dr. Fong said</th></tr>
+      <tr><td><strong>L1 — 6 V's</strong></td><td>YES</td><td>YES</td><td>Given a company passage → identify which V's apply + propose solutions (not definitions). Same format as L1 practice question.</td></tr>
+      <tr><td><strong>L2 — HDFS</strong></td><td>Possibly</td><td>YES</td><td>Know 3-way replication, fault tolerance via replicas.</td></tr>
+      <tr><td><strong>L2 — Dask</strong></td><td>NO</td><td>YES (1–2 Qs)</td><td>MCQ only. Focus: map_overlap, lazy execution, chunk size trade-offs, task graph concept.</td></tr>
+      <tr><td><strong>L3 — MapReduce</strong></td><td>YES (key topic)</td><td>YES</td><td>"Make sure you understand the flow" — mapper → shuffle → reducer. Intermediate key-values. Word count example. Common mistake: forgetting the shuffle step.</td></tr>
+      <tr><td><strong>L3 — RDD / Spark</strong></td><td>YES (programming 10%)</td><td>YES</td><td>Programming = RDD only. Revise Tutorial 3. Transformations vs actions, narrow vs wide, map/flatMap/mapValues/flatMapValues differences.</td></tr>
+      <tr><td><strong>L3/L4 — DataFrame / SparkSQL</strong></td><td>NO</td><td>YES (3–4 Qs, ~4–5%)</td><td>MCQ only. Know the operations, optimizer (Catalyst), key API differences vs RDD.</td></tr>
+      <tr><td><strong>L5 — NLP</strong></td><td>YES</td><td>YES</td><td>BPE algorithm (run to vocabulary size 10 in exam), Levenshtein DP table, stemming vs lemmatization. Stopwords, POS tagging.</td></tr>
+      <tr><td><strong>L6 — Word Embeddings</strong></td><td>Conceptual only</td><td>YES</td><td>"Low math for test embedding." No equation memorisation. Know: Skip-gram vs CBOW (which predicts what), why softmax (ensures 0–1), why negative sampling (efficiency), M = window size (not total context words).</td></tr>
+      <tr><td><strong>L7 — PageRank</strong></td><td>YES (computation)</td><td>YES</td><td>Build adjacency matrix → power iteration → convergence. Dead end fix + spider trap fix (teleportation). Know why teleportation works.</td></tr>
+      <tr><td><strong>L8 — Graph Analytics</strong></td><td>YES (computation)</td><td>YES</td><td>Density (K/N formula), degree distribution, clustering coefficient, betweenness centrality (VERTEX only — edge betweenness NOT tested), closeness + harmonic centrality.</td></tr>
+      <tr><td><strong>L9 — NoSQL / CAP</strong></td><td>NO</td><td>YES</td><td>MCQ only. CAP theorem, BASE model, strong vs eventual consistency, partition vs replication trade-offs, CP vs AP behaviour when disconnected.</td></tr>
+      <tr><td><strong>L10 — RecSys</strong></td><td>NOT this semester</td><td>Possibly some</td><td>Was in long question in Sem 1. Coverage different this semester — not explicitly confirmed in long question.</td></tr>
+    </table>
+
+    <h3>Confirmed NOT in Exam</h3>
+    <ul>
+      <li><strong>Edge/arc betweenness centrality</strong> — "ash centrality will not be answered in your final exam"</li>
+      <li><strong>Word embedding math/equations</strong> — "low math for test embedding, you do not need to memorize any equation"</li>
+      <li><strong>DataFrame / SparkSQL in long question</strong> — MCQ only</li>
+      <li><strong>Dask in long question</strong> — MCQ only (1–2 questions)</li>
+    </ul>
+
+    <h3>Common Mistakes Dr. Fong Warned About</h3>
+    <div class="callout danger"><strong>Levenshtein DP table orientation:</strong> Source word ALWAYS at the TOP (columns). Target word ALWAYS on the LEFT (rows). "Every semester some students mix up — your whole question will be wrong."</div>
+    <div class="callout danger"><strong>PageRank adjacency matrix orientation:</strong> Source node at TOP (columns). Destination node on the LEFT (rows). Column sums must equal 1.</div>
+    <div class="callout danger"><strong>CBOW window size M:</strong> If you include 2 words before and 2 words after the centre word, M = 2. NOT 4. M is the half-window size.</div>
+    <div class="callout danger"><strong>MapReduce shuffle:</strong> "Many students forget about the shuffle." The 3 stages are mapper → <em>shuffle</em> → reducer. Shuffle is automatic (system-handled) but you must describe it.</div>
+
+    <h3>L1 — 6 V's: Exam Question Format</h3>
+    <p>Dr. Fong will give a short company paragraph. You need to:</p>
+    <ol>
+      <li>Identify which V's are evidenced in the passage (highlight/quote specific phrases)</li>
+      <li>Propose a solution for each V identified</li>
+    </ol>
+    <table>
+      <tr><th>V</th><th>Evidence to look for in passage</th><th>Suggested solution to propose</th></tr>
+      <tr><td>Volume</td><td>Large amounts of data, millions of records, petabytes</td><td>Hadoop/HDFS for storage; Spark for batch processing</td></tr>
+      <tr><td>Velocity</td><td>"Real-time", fast-arriving data, streaming</td><td>Streaming pipeline; Spark Streaming / Kafka</td></tr>
+      <tr><td>Variety</td><td>Multiple formats: JSON, CSV, video, text, structured + unstructured</td><td>Data Lake; flexible NoSQL schema</td></tr>
+      <tr><td>Veracity</td><td>"Noisy", inaccurate, inconsistent, missing values</td><td>Data validation pipeline; data cleaning; quality checks</td></tr>
+      <tr><td>Value</td><td>Not all data is useful; long processing = less value</td><td>Feature selection; prioritise high-value data processing</td></tr>
+      <tr><td>Variability</td><td>User preferences change, data meaning shifts over time</td><td>Re-training models periodically; adaptive systems</td></tr>
+    </table>
+
+    <h3>L3 — MapReduce: What to Know for Exam</h3>
+    <p>The exam question will ask you to trace through a MapReduce job. Know the <strong>3 stages</strong>:</p>
+    <div class="step"><div class="step-num">1</div><div><strong>Mapper</strong> — processes each input record, emits (key, value) pairs. E.g., word count: emit (word, 1) for every word.</div></div>
+    <div class="step"><div class="step-num">2</div><div><strong>Shuffle &amp; Sort</strong> — system automatically groups all values for the same key together. E.g., ("hello", [1,1,1]). This step is automatic — you don't code it but MUST describe it.</div></div>
+    <div class="step"><div class="step-num">3</div><div><strong>Reducer</strong> — receives (key, [list of values]) and aggregates. E.g., sum the list → ("hello", 3).</div></div>
+    <div class="callout warn"><strong>Intermediate result format:</strong> After mapper: (word, 1). After shuffle: (word, [1, 1, 1, …]). After reducer: (word, count). Know these intermediate formats.</div>
+    <p>Why MapReduce is slow:</p>
+    <ul>
+      <li>Writes intermediate results to disk after every stage (3× replication via HDFS)</li>
+      <li>Must express everything as mapper + reducer — no flexibility</li>
+      <li>Disk I/O is the bottleneck → Spark fixes this with in-memory RDD lineage</li>
+    </ul>
+
+    <h3>L5 — BPE: Exam Question Format</h3>
+    <p>Dr. Fong said: "In your examination, I only set to the 10 [vocabulary size], not 20." Steps:</p>
+    <div class="step"><div class="step-num">1</div><div>Split all words into individual characters (base vocabulary = all unique characters)</div></div>
+    <div class="step"><div class="step-num">2</div><div>Count all adjacent character pair frequencies across the corpus</div></div>
+    <div class="step"><div class="step-num">3</div><div>Merge the most frequent pair into a single token, add to vocabulary</div></div>
+    <div class="step"><div class="step-num">4</div><div>Repeat until vocabulary reaches target size (10 in exam)</div></div>
+    <div class="callout tip"><strong>Unknown token:</strong> If a character/pair doesn't appear in the trained vocabulary, it maps to [UNK] (shown as ? in Dr. Fong's slides). This is why BPE handles unknown words — it can always fall back to individual characters.</div>
+
+    <h3>L6 — Word Embeddings: Conceptual Points Only</h3>
+    <table>
+      <tr><th>Concept</th><th>What to know (no equations needed)</th></tr>
+      <tr><td>Skip-gram</td><td>Input = centre word → predict context (surrounding) words</td></tr>
+      <tr><td>CBOW</td><td>Input = context words → predict centre word. Average context embeddings in hidden layer.</td></tr>
+      <tr><td>Why softmax?</td><td>Ensures output probabilities sum to 1 and are in [0, 1]. Converts raw scores to probability distribution.</td></tr>
+      <tr><td>Why negative sampling?</td><td>Full softmax over large vocabulary is too slow. Sample k random "negative" words instead.</td></tr>
+      <tr><td>Two embeddings per word</td><td>Centre word embedding (W) + Context word embedding (W'). Usually use centre embeddings as final vectors.</td></tr>
+      <tr><td>Window size M</td><td>M = half-window. If 2 words each side, M = 2. Total context = 2M words. CBOW averages 2M vectors, divides by 2M.</td></tr>
+    </table>
+
+    <h3>L7 — PageRank: How to Build the Adjacency Matrix</h3>
+    <div class="callout danger"><strong>Orientation rule (from Dr. Fong):</strong> Source node = TOP (columns). Destination node = LEFT (rows). Column sums = 1. "Every semester students mix this up."</div>
+    <p>Example — 3 nodes, edges: A→B, A→C, B→C, C→A:</p>
+    <table>
+      <tr><th>From→ / To↓</th><th>A (source)</th><th>B (source)</th><th>C (source)</th></tr>
+      <tr><td><strong>A (dest)</strong></td><td>0</td><td>0</td><td>1</td></tr>
+      <tr><td><strong>B (dest)</strong></td><td>1/2</td><td>0</td><td>0</td></tr>
+      <tr><td><strong>C (dest)</strong></td><td>1/2</td><td>1</td><td>0</td></tr>
+    </table>
+    <p>Column A sums to 1 (A has 2 outlinks, each gets 1/2). Column C sums to 1 (C has 1 outlink to A).</p>
+
+    <h3>L8 — Graph Analytics: What's Tested vs Not</h3>
+    <table>
+      <tr><th>Measure</th><th>Tested?</th><th>Notes</th></tr>
+      <tr><td>Degree centrality</td><td>YES</td><td>In-degree and out-degree for directed graphs</td></tr>
+      <tr><td>Clustering coefficient</td><td>YES</td><td>Formula: 2m_v / (d_v(d_v−1)). Know how to compute for a node.</td></tr>
+      <tr><td>Closeness centrality</td><td>YES</td><td>= (N−1) / sum of shortest path distances. Know the disconnected graph problem → use harmonic centrality instead.</td></tr>
+      <tr><td>Betweenness centrality (vertex)</td><td>YES</td><td>Count shortest paths passing through a vertex ÷ total shortest paths between all pairs.</td></tr>
+      <tr><td>Eigenvector centrality</td><td>Conceptual</td><td>Know the idea (importance from important neighbours). Power iteration concept.</td></tr>
+      <tr><td><strong>Edge betweenness</strong></td><td><strong>NO</strong></td><td>"Ash centrality will not be answered in your final exam."</td></tr>
+      <tr><td>Graph density</td><td>YES</td><td>= K / N (edges / nodes) — or 2|E| / N(N−1) for undirected. Know which formula Dr. Fong uses.</td></tr>
+    </table>
+
+    <h3>Programming (10%) — What to Revise</h3>
+    <p>Dr. Fong specifically said: revise <strong>Tutorial 3</strong>. The take-home exercise is a past exam question (makeup version).</p>
+    <table>
+      <tr><th>Exercise</th><th>Skills tested</th></tr>
+      <tr><td>Tutorial 3 Q2</td><td>Basic RDD operations: textFile, map, filter, reduceByKey</td></tr>
+      <tr><td>Tutorial 3 Q3</td><td>DNA pattern counting with RDD</td></tr>
+      <tr><td>Tutorial 3 Q4</td><td>More complex RDD pipelines</td></tr>
+      <tr><td>Take-home inverted index</td><td>flatMap → (word, docID) → groupByKey → sort</td></tr>
+    </table>
+    <div class="callout tip">The programming question gives you a series of TO-DO steps to fill in. You won't be writing from scratch — you'll complete gaps in a provided skeleton. Focus on knowing what each RDD operation does and its syntax.</div>
+
+    </div><!-- /body-exam -->
+  </div><!-- /exam card -->
+
+  <div style="display:none"><!-- dummy closing tags for old structure -->
 
 <div style="text-align:center; color: var(--muted); padding: 30px; font-size: 0.82em;">
   DSAI4205 Big Data Analytics — Exam Review Notes · PolyU

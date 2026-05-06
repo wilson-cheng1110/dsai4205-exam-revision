@@ -237,6 +237,19 @@ ELI5 = {
     "T01 - Pandas Extended API": "Key Pandas: `df.describe()`, `df.info()`, `df.isnull().sum()`, `df.fillna()`, `df.drop_duplicates()`, `pd.get_dummies()`, `df.corr()`. Chain methods for concise pipelines.",
     "T04 - Extended Spark DataFrame API": "`df.withColumnRenamed('old','new')`, `df.dropDuplicates(['col'])`, `df.fillna({'col': 0})`, `df.sample(fraction=0.1)`, `df.cache()`, `df.explain()` (show query plan).",
 
+    # Exam section
+    "Exam Structure (confirmed by Dr. Fong)": "The exam has two parts: 22 multiple-choice questions (Section A) and long questions (Section B). Only 10% is programming — much less than Semester 1's 30%. The past paper on BEPA is useful but the coverage is different.",
+    "Topic-by-Topic Exam Scope": "Use this table as your revision checklist. Green = definitely in long question. MCQ-only topics still need to be understood but don't need deep computational practice.",
+    "Confirmed NOT in Exam": "Edge betweenness centrality, word embedding math equations, DataFrame/SparkSQL in long question, and Dask in long question are all explicitly excluded.",
+    "Common Mistakes Dr. Fong Warned About": "Dr. Fong personally warned about four recurring mistakes every semester. Memorise the orientation rules for Levenshtein and PageRank matrices — getting them backwards loses the entire question.",
+    "L1 — 6 V's: Exam Question Format": "You'll get a company description paragraph. Your job: quote evidence for each V present, then suggest a technical fix. Think Volume=Spark, Velocity=streaming, Variety=data lake, Veracity=validation, Value=feature selection, Variability=retraining.",
+    "L3 — MapReduce: What to Know for Exam": "Three stages: Mapper (emit key-value pairs) → Shuffle (system groups same keys together automatically) → Reducer (aggregate). The shuffle is automatic but you MUST mention it — many students forget and lose marks.",
+    "L5 — BPE: Exam Question Format": "Dr. Fong sets vocabulary target size = 10. Start with characters, merge most-frequent pair each round, stop at 10 tokens. Unknown characters map to [UNK] shown as '?' in exam.",
+    "L6 — Word Embeddings: Conceptual Points Only": "No math required. Know Skip-gram (centre→context) vs CBOW (context→centre), why softmax (probability distribution), why negative sampling (speed), and M = half-window size (2 words each side = M=2, not 4).",
+    "L7 — PageRank: How to Build the Adjacency Matrix": "SOURCE at TOP (columns), DESTINATION at LEFT (rows). Column sums must equal 1. This is the same orientation as the Levenshtein table. Memorise: source=top, target/destination=left.",
+    "L8 — Graph Analytics: What's Tested vs Not": "Edge betweenness is NOT tested. Vertex betweenness IS tested. Closeness centrality: know the disconnected graph problem and harmonic centrality fix. Density formula: 2|E|/N(N-1) for undirected.",
+    "Programming (10%) — What to Revise": "Revise Tutorial 3 (Q2, Q3, Q4) and the take-home inverted index exercise. Questions give a skeleton with TO-DO gaps to fill. Focus on: textFile, map, flatMap, filter, reduceByKey, groupByKey, sortByKey syntax.",
+
     # Summary
     "Must-Know Formulas": "PageRank: r=βMr+(1-β)/N. TF-IDF: TF×log(N/df). Cosine similarity: A·B/(|A||B|). Jaccard: |A∩B|/|A∪B|. Levenshtein: DP with insert/delete/substitute. BPE: merge most frequent pair repeatedly.",
     "Key Comparisons at a Glance": "Map (lazy) vs Action (eager in Spark). Scale-up vs Scale-out. ACID vs BASE. Strong vs Eventual consistency. Stemming vs Lemmatisation. Skip-gram vs CBOW. Content-based vs CF.",
@@ -441,6 +454,7 @@ SECTIONS = [
     ('l10', 'L10: Recommendation Systems'),
     ('code','Tutorial Code Reference (T01–T09 & Notebooks)'),
     ('summary', 'Quick Reference Summary'),
+    ('exam',    'Exam Format & Dr. Fong\'s Tips (Apr 11 Lecture)'),
 ]
 
 # ── Build document ────────────────────────────────────────────────────────────
