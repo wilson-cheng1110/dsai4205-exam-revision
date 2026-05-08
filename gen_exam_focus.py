@@ -125,37 +125,96 @@ def add_tip(doc, tip_text, color='warn'):
     p.paragraph_format.space_before = Pt(2)
     p.paragraph_format.space_after = Pt(5)
 
+import re as _re
+
+_CHAR_MAP = {
+    '\xa0': ' ',       # non-breaking space
+    '’': "'",     # right single quotation
+    '‘': "'",     # left single quotation
+    '“': '"',     # left double quotation
+    '”': '"',     # right double quotation
+    '–': '-',     # en dash
+    '—': '--',    # em dash
+    '…': '...',   # ellipsis
+    '•': '',      # bullet (let DOCX style handle it)
+    '': '->',    # Wingdings arrow
+    '': '',      # Wingdings bullet
+    '': ' ',     # Wingdings space
+    '·': '',      # middle dot bullet
+    '\t': ' ',         # tab
+}
+
 def clean(text):
-    """Remove control characters and NULL bytes that break lxml."""
-    import re
-    return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text).strip()
+    """Normalise smart quotes, Wingdings, nbsp, and remove XML-illegal control chars."""
+    for char, repl in _CHAR_MAP.items():
+        text = text.replace(char, repl)
+    text = _re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+    return _re.sub(r' {2,}', ' ', text).strip()
+
+_CODE_TOKENS = {'import ', 'def ', '>>>', '.filter(', '.map(', 'sc.', 'spark.',
+                'da.', 'dask', '.compute(', 'lambda ', '.reduceByKey', '.flatMap',
+                '.textFile', '.groupBy', '.show(', 'pd.', 'np.', '= [', '= {'}
+
+def _is_code(text):
+    return any(tok in text for tok in _CODE_TOKENS) and len(text) > 8
+
+def _get_title(slide):
+    """Return slide title text using placeholder idx, falling back to first text shape."""
+    # Pass 1: proper TITLE placeholder (idx 0)
+    for shape in slide.shapes:
+        if shape.has_text_frame and shape.is_placeholder:
+            pf = shape.placeholder_format
+            if pf.idx == 0:
+                t = clean(shape.text_frame.paragraphs[0].text) if shape.text_frame.paragraphs else ''
+                if t:
+                    return t
+    # Pass 2: SUBTITLE / CENTRE_TITLE placeholder (idx 1)
+    for shape in slide.shapes:
+        if shape.has_text_frame and shape.is_placeholder:
+            pf = shape.placeholder_format
+            if pf.idx == 1:
+                t = clean(shape.text_frame.paragraphs[0].text) if shape.text_frame.paragraphs else ''
+                if t:
+                    return t
+    # Pass 3: first non-empty text shape
+    for shape in slide.shapes:
+        if shape.has_text_frame:
+            for para in shape.text_frame.paragraphs:
+                t = clean(para.text)
+                if t:
+                    return t
+    return ''
+
+def _get_body(slide, title_text):
+    """Return list of (text, level) tuples for all non-title content."""
+    result = []
+    title_shape_found = False
+    for shape in slide.shapes:
+        if not shape.has_text_frame:
+            continue
+        is_title_ph = (shape.is_placeholder and shape.placeholder_format.idx in (0, 1))
+        if is_title_ph and not title_shape_found:
+            title_shape_found = True
+            # Skip the first para (already used as title), include rest
+            paras = list(shape.text_frame.paragraphs)
+            for para in paras[1:]:
+                t = clean(para.text)
+                if t:
+                    result.append((t, para.level))
+        else:
+            for para in shape.text_frame.paragraphs:
+                t = clean(para.text)
+                if t:
+                    result.append((t, para.level))
+    return result
 
 def add_slide_content(doc, slide, slide_num):
     """Extract and format a single slide into the document."""
-    shapes = slide.shapes
-    title_text = ''
-    body_paras = []
-
-    for shape in shapes:
-        if not shape.has_text_frame:
-            continue
-        tf = shape.text_frame
-        paras = [clean(p.text) for p in tf.paragraphs if clean(p.text)]
-        if not paras:
-            continue
-
-        # Heuristic: first non-empty text shape with large font = title
-        if not title_text:
-            title_text = clean(paras[0])
-            rest = paras[1:]
-        else:
-            rest = paras
-
-        for para_text in rest:
-            body_paras.append(clean(para_text))
-
+    title_text = _get_title(slide)
     if not title_text:
         return
+
+    body_paras = _get_body(slide, title_text)
 
     # Slide heading
     p = doc.add_paragraph()
@@ -166,29 +225,31 @@ def add_slide_content(doc, slide, slide_num):
     run.font.size = Pt(11)
     run.font.color.rgb = RGBColor(0x1E, 0x3A, 0x5F)
 
-    # Body bullets
-    for text in body_paras:
-        if not text:
-            continue
-        text = clean(text)
-        if not text:
-            continue
-        # Detect code (contains indentation, def, import, #, =, etc.)
-        is_code = any(tok in text for tok in ['import ', 'def ', '()', '  ', '>>>', '.filter(', '.map(', 'RDD', 'sc.', 'spark.', 'da.', 'dask', '.compute(', 'lambda', '    '])
-        if is_code and len(text) > 10:
-            p2 = doc.add_paragraph()
-            r = p2.add_run(text)
-            r.font.name = 'Courier New'
-            r.font.size = Pt(8)
-            r.font.color.rgb = RGBColor(0x7C, 0x3A, 0xED)
-            p2.paragraph_format.left_indent = Cm(0.6)
-            p2.paragraph_format.space_after = Pt(1)
-        else:
-            p2 = doc.add_paragraph(style='List Bullet')
-            r = p2.add_run(text)
-            r.font.size = Pt(10)
-            p2.paragraph_format.left_indent = Cm(0.3)
-            p2.paragraph_format.space_after = Pt(1)
+    if not body_paras:
+        # Diagram-only slide
+        p2 = doc.add_paragraph()
+        r = p2.add_run('(Diagram slide — refer to original PPTX for visual content)')
+        r.italic = True
+        r.font.size = Pt(9)
+        r.font.color.rgb = RGBColor(0x94, 0xA3, 0xB8)
+        p2.paragraph_format.left_indent = Cm(0.3)
+    else:
+        for text, level in body_paras:
+            indent = Cm(0.3 + level * 0.4)
+            if _is_code(text):
+                p2 = doc.add_paragraph()
+                r = p2.add_run(text)
+                r.font.name = 'Courier New'
+                r.font.size = Pt(8)
+                r.font.color.rgb = RGBColor(0x7C, 0x3A, 0xED)
+                p2.paragraph_format.left_indent = indent
+                p2.paragraph_format.space_after = Pt(1)
+            else:
+                p2 = doc.add_paragraph(style='List Bullet')
+                r = p2.add_run(text)
+                r.font.size = Pt(10)
+                p2.paragraph_format.left_indent = indent
+                p2.paragraph_format.space_after = Pt(1)
 
     # Check for matching tip
     for key, tip in TIPS.items():
