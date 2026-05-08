@@ -78,7 +78,7 @@ def ans_note(doc, text, color='green'):
     r2.font.size = Pt(9)
     p.paragraph_format.left_indent = Cm(0.5)
 
-def mcq(doc, num, stem, options, answer_letter, is_answer_key=False):
+def mcq(doc, num, stem, options, answer_letter, explanation='', is_answer_key=False):
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(5)
     r = p.add_run(f'{num}.  {stem}')
@@ -93,6 +93,18 @@ def mcq(doc, num, stem, options, answer_letter, is_answer_key=False):
         if is_answer_key and is_correct:
             run.bold = True
             run.font.color.rgb = RGBColor(0x16, 0x65, 0x34)
+    if is_answer_key and explanation:
+        p_ex = doc.add_paragraph()
+        p_ex.paragraph_format.left_indent = Cm(0.8)
+        p_ex.paragraph_format.space_after = Pt(6)
+        r_label = p_ex.add_run('Why: ')
+        r_label.bold = True
+        r_label.font.size = Pt(9)
+        r_label.font.color.rgb = RGBColor(0x1D, 0x4E, 0xD8)
+        r_body = p_ex.add_run(explanation)
+        r_body.font.size = Pt(9)
+        r_body.font.color.rgb = RGBColor(0x1E, 0x40, 0xAF)
+        r_body.italic = True
 
 def dp_table(doc, rows_data, header_row=True):
     nrows = len(rows_data)
@@ -115,8 +127,8 @@ def dp_table(doc, rows_data, header_row=True):
     doc.add_paragraph()
 
 # ── MCQ bank ─────────────────────────────────────────────────────────────────
+# Each entry: (stem, [(letter, option), ...], correct_letter, explanation)
 MCQ_QUESTIONS = [
-    # (stem, [(letter, option), ...], answer)
     # L1 — 2 questions
     (
         "Which of the following BEST describes the 'Veracity' dimension of Big Data?",
@@ -124,18 +136,25 @@ MCQ_QUESTIONS = [
          ('B','The diversity of data types including structured and unstructured'),
          ('C','The quality and accuracy of the data'),
          ('D','The usefulness of the data for business decision making')],
-        'C'
+        'C',
+        'Veracity = quality/trustworthiness of data (e.g. measurement errors, noisy feedback). '
+        'A = Volume. B = Variety. D = Value.'
     ),
     (
         "A company collects 2 petabytes of sensor data daily from 40,000 IoT devices. Which V does this PRIMARILY illustrate?",
         [('A','Velocity'), ('B','Variability'), ('C','Volume'), ('D','Veracity')],
-        'C'
+        'C',
+        'Volume = sheer amount of data (petabytes, millions of records). '
+        'Velocity would apply if the focus were on how fast data arrives or must be processed. '
+        '2 petabytes daily describes size, not speed.'
     ),
     # L2 — HDFS + Dask — 3 questions
     (
         "By default, HDFS stores each data block with how many replicas?",
         [('A','1'), ('B','2'), ('C','3'), ('D','5')],
-        'C'
+        'C',
+        'HDFS uses 3-way replication by default: one copy on the local node, and two copies on other '
+        'nodes (usually on different racks). If one node fails, data is still available from the other two.'
     ),
     (
         "Which of the following BEST describes Dask's execution model?",
@@ -143,7 +162,10 @@ MCQ_QUESTIONS = [
          ('B','Lazy — builds a task graph and only runs on .compute()'),
          ('C','Sequential — each operation completes before the next starts'),
          ('D','Synchronous — blocks the thread until all chunks are processed')],
-        'B'
+        'B',
+        'Dask is lazy: operations like ddf.groupby().sum() do NOT run immediately — they build a '
+        'task graph (logical plan). Execution only happens when you call .compute(). '
+        'This is identical to Spark\'s transformation vs action model.'
     ),
     (
         "Setting Dask chunk sizes too SMALL primarily causes which problem?",
@@ -151,7 +173,10 @@ MCQ_QUESTIONS = [
          ('B','Data corruption across chunk boundaries'),
          ('C','Excessive task scheduling overhead that slows computation'),
          ('D','Incorrect numerical results due to floating point errors')],
-        'C'
+        'C',
+        'Tiny chunks = millions of tiny tasks. Each task has a fixed scheduling overhead. '
+        'At some point you spend more time managing tasks than doing actual computation. '
+        'A is the opposite problem (chunks too LARGE).'
     ),
     # L3 — MapReduce + RDD — 5 questions
     (
@@ -160,12 +185,18 @@ MCQ_QUESTIONS = [
          ('B','[("big", 1), ("data", 1), ("big", 1)]'),
          ('C','[("big data big", 1)]'),
          ('D','{"big": 2, "data": 1}')],
-        'B'
+        'B',
+        'The mapper processes each word INDEPENDENTLY and emits (word, 1) for every occurrence — it does '
+        'NOT aggregate. Aggregation happens in the reducer. A is the reducer output. '
+        'C treats the whole sentence as one key. D is a Python dict, not a key-value pair stream.'
     ),
     (
         "Which stage of MapReduce is AUTOMATICALLY handled by the framework with NO user code required?",
         [('A','Map'), ('B','Partition'), ('C','Shuffle and Sort'), ('D','Reduce')],
-        'C'
+        'C',
+        'Shuffle and Sort is done entirely by the MapReduce framework. It groups all values for the '
+        'same key together and sorts by key before passing to reducers. '
+        'Dr. Fong warned: many students forget to mention this stage in exam answers.'
     ),
     (
         "What is the PRIMARY reason MapReduce is slower than Spark?",
@@ -173,12 +204,19 @@ MCQ_QUESTIONS = [
          ('B','MapReduce writes all intermediate results to HDFS disk (with 3× replication)'),
          ('C','MapReduce cannot run on clusters larger than 100 nodes'),
          ('D','MapReduce loads the entire dataset into RAM before processing')],
-        'B'
+        'B',
+        'After every mapper finishes, results are written to HDFS (replicated 3×). '
+        'This disk I/O is the bottleneck — even a single extra stage means 6 disk writes (3 write + 3 read). '
+        'Spark keeps intermediate RDDs in RAM, avoiding this entirely.'
     ),
     (
         "Which of the following is a NARROW transformation in Spark RDD?",
         [('A','groupByKey()'), ('B','reduceByKey()'), ('C','filter()'), ('D','join()')],
-        'C'
+        'C',
+        'Narrow = each output partition depends on only ONE input partition — no data moves across the network. '
+        'filter(), map(), flatMap() are narrow. '
+        'groupByKey(), reduceByKey(), join() are WIDE — they require a shuffle because keys from all partitions '
+        'must be collected together.'
     ),
     (
         "What is the key difference between map() and mapValues() in Spark RDD?",
@@ -186,7 +224,11 @@ MCQ_QUESTIONS = [
          ('B','mapValues() applies the function only to the value, preserving the key; map() applies to the whole element'),
          ('C','map() works on any RDD; mapValues() only works on string RDDs'),
          ('D','mapValues() is faster because it skips serialization')],
-        'B'
+        'B',
+        'mapValues() only transforms the VALUE in a (key, value) pair — the key is untouched. '
+        'This also preserves partitioning (no shuffle). '
+        'map() transforms the ENTIRE element, so a (k, v) pair could become anything. '
+        'Both are lazy transformations (A is wrong).'
     ),
     # L4 — DataFrame — 2 questions
     (
@@ -195,7 +237,10 @@ MCQ_QUESTIONS = [
          ('B','Manual index creation on frequently-queried columns'),
          ('C','Converting Python UDFs to JVM bytecode'),
          ('D','Increasing the number of partitions before every join')],
-        'A'
+        'A',
+        'Catalyst automatically applies: predicate pushdown (filter early before a join/scan), '
+        'column pruning (only read columns you actually use), join reordering, and constant folding. '
+        'Python UDFs (C) are actually a WEAKNESS of DataFrames — they can\'t be optimised by Catalyst.'
     ),
     (
         "Which statement about Spark DataFrame vs RDD is CORRECT?",
@@ -203,13 +248,21 @@ MCQ_QUESTIONS = [
          ('B','DataFrame cannot handle nested data types such as arrays or structs'),
          ('C','DataFrame benefits from Catalyst optimisation; RDD does not'),
          ('D','Both RDD and DataFrame support SQL-style queries natively')],
-        'C'
+        'C',
+        'Catalyst only works on DataFrames — it understands the schema and can rewrite the query plan. '
+        'RDDs are opaque to Spark (Spark doesn\'t know what your lambda function does). '
+        'B is wrong: DataFrames fully support ArrayType, MapType, StructType. '
+        'D is wrong: RDDs have no native SQL support.'
     ),
     # L5 — NLP — 3 questions
     (
         "In Byte Pair Encoding (BPE), what represents a subword or character that cannot be mapped to the learned vocabulary?",
         [('A','[MASK]'), ('B','[PAD]'), ('C','[UNK] / "?"'), ('D','[CLS]')],
-        'C'
+        'C',
+        '[UNK] (unknown) is used when a character or subword was never seen during BPE training, '
+        'so it has no entry in the vocabulary. In Dr. Fong\'s slides this appears as "?". '
+        '[MASK] is used in BERT for masked language modelling. [PAD] pads sequences to equal length. '
+        '[CLS] marks the start of a sequence in BERT.'
     ),
     (
         "What is the KEY difference between stemming and lemmatisation?",
@@ -217,7 +270,11 @@ MCQ_QUESTIONS = [
          ('B','Lemmatisation always produces a valid English word; stemming may not'),
          ('C','Stemming uses a dictionary; lemmatisation uses suffix-stripping rules'),
          ('D','Lemmatisation is faster but less accurate than stemming')],
-        'B'
+        'B',
+        'Stemming chops word endings using rules (Porter stemmer): "studies" → "studi" — not a real word. '
+        'Lemmatisation looks up the true base form in a dictionary: "studies" → "study". '
+        'The output of lemmatisation is always a valid English word. '
+        'A has it backwards. C has it backwards. D has speed/accuracy backwards too.'
     ),
     (
         "In the Levenshtein distance dynamic programming table, where is the SOURCE word placed?",
@@ -225,13 +282,19 @@ MCQ_QUESTIONS = [
          ('B','Top (column headers)'),
          ('C','Either side — the result is the same'),
          ('D','Diagonally from top-left to bottom-right')],
-        'B'
+        'B',
+        'Dr. Fong\'s direct warning: SOURCE word = TOP (columns), TARGET word = LEFT (rows). '
+        'Every semester students mix these up and get the entire question wrong. '
+        'C is technically true for the final distance value, but the DP fill direction matters for showing working.'
     ),
     # L6 — Embeddings — 3 questions
     (
         "In the CBOW model, the window parameter M = 2 means how many total context words are used as input?",
         [('A','2'), ('B','4'), ('C','1'), ('D','8')],
-        'B'
+        'B',
+        'M is the HALF-window size. M=2 means 2 words to the LEFT and 2 words to the RIGHT of the centre word, '
+        'giving 2M = 4 total context words. Dr. Fong explicitly warned: M=2 means 4 context words, not 2. '
+        'CBOW averages these 4 embeddings and divides by 2M=4.'
     ),
     (
         "Why is the softmax function used in the Word2Vec output layer?",
@@ -239,7 +302,11 @@ MCQ_QUESTIONS = [
          ('B','To ensure output scores are positive and sum to 1 (a valid probability distribution)'),
          ('C','To speed up gradient descent by normalising gradients'),
          ('D','To prevent the centre word from appearing in the context')],
-        'B'
+        'B',
+        'The raw dot-product scores can be any real number (positive or negative). '
+        'Softmax: (1) applies exp() to guarantee all values are positive, then (2) divides by the sum '
+        'so all values sum to 1 — turning them into a probability distribution over the vocabulary. '
+        'This lets us compute cross-entropy loss and train via backpropagation.'
     ),
     (
         "Skip-gram with Negative Sampling (SGNS) replaces the full softmax with what?",
@@ -247,13 +314,20 @@ MCQ_QUESTIONS = [
          ('B','A Gaussian distribution over the entire vocabulary'),
          ('C','A lookup table that maps word IDs to fixed scores'),
          ('D','A cross-entropy loss over the top-1000 most frequent words')],
-        'A'
+        'A',
+        'Full softmax over a vocabulary of 100k+ words is too slow (denominator sums over ALL words). '
+        'SGNS instead: for each real (centre, context) pair, sample k random "negative" words that did NOT '
+        'appear nearby. Train a binary sigmoid classifier: real pair → 1, negative pair → 0. '
+        'Much faster — only k+1 updates per training example instead of V.'
     ),
     # L7 — PageRank — 2 questions
     (
         "In the PageRank stochastic adjacency matrix, columns represent SOURCE nodes. What must each column sum to?",
         [('A','0'), ('B','The PageRank score of that node'), ('C','1'), ('D','1/N')],
-        'C'
+        'C',
+        'The column for node X represents the probability distribution of where a random walker goes WHEN '
+        'they are currently at X. Probabilities must sum to 1. Each non-zero entry = 1/out-degree(X). '
+        'If all columns sum to 1, M is called column-stochastic, and the power iteration is guaranteed to converge.'
     ),
     (
         "Without teleportation, what happens to PageRank scores when a 'spider trap' exists?",
@@ -261,13 +335,21 @@ MCQ_QUESTIONS = [
          ('B','Scores for all nodes outside the trap converge to 0'),
          ('C','The power iteration diverges and never converges'),
          ('D','Only the dead-end nodes lose all their rank')],
-        'B'
+        'B',
+        'A spider trap is a set of pages that link only to each other (a closed cycle). '
+        'With each iteration, rank flows INTO the trap but never flows OUT. '
+        'Eventually all rank is absorbed by the trap — every page outside gets rank 0. '
+        'D describes the dead-end problem, which is different.'
     ),
     # L8 — Graph — 2 questions
     (
         "Node v has degree 4 and there are 3 edges among its 4 neighbours. What is its clustering coefficient?",
         [('A','0.25'), ('B','0.50'), ('C','0.75'), ('D','1.00')],
-        'B'  # 2*3/(4*3) = 6/12 = 0.5
+        'B',
+        'Formula: C(v) = 2·m_v / (d_v·(d_v−1)) where m_v = edges among neighbours, d_v = degree of v. '
+        'C(v) = 2×3 / (4×3) = 6/12 = 0.50. '
+        'If all 4 neighbours were connected to each other (6 edges), C(v) = 1.0 (complete clique). '
+        'Here only 3 of 6 possible edges exist → 0.50.'
     ),
     # L9 — NoSQL — 2 questions
     (
@@ -276,7 +358,11 @@ MCQ_QUESTIONS = [
          ('B','Availability when a network partition occurs'),
          ('C','Partition tolerance under high load'),
          ('D','Durability of committed writes')],
-        'B'
+        'B',
+        'CP means: when a network partition occurs, the system LOCKS and refuses to respond rather than '
+        'returning potentially stale data. This sacrifices Availability. '
+        'Example: HBase, Zookeeper. When nodes can\'t communicate, they stop serving requests. '
+        'AP systems (Cassandra, DynamoDB) do the opposite — they stay available but may return stale data.'
     ),
     (
         "Which of the following BEST describes 'eventual consistency'?",
@@ -284,7 +370,11 @@ MCQ_QUESTIONS = [
          ('B','The system may return stale data briefly, but all nodes will eventually converge to the latest value'),
          ('C','Consistency is only guaranteed if fewer than 50% of nodes fail'),
          ('D','Data is consistent only within a single data centre, not across regions')],
-        'B'
+        'B',
+        'Eventual consistency = AP in CAP theorem. Writes propagate to replicas with a short delay. '
+        'During that window you might read old data. But given "sufficient time" (usually milliseconds to seconds), '
+        'all nodes converge. Instagram likes and Amazon shopping carts use this — slight staleness is acceptable. '
+        'A describes STRONG consistency (CP systems).'
     ),
 ]
 
@@ -446,8 +536,8 @@ def build_exam(is_answer_key=False):
         p2.runs[0].font.size = Pt(10)
     doc.add_paragraph()
 
-    for i, (stem, options, answer) in enumerate(MCQ_QUESTIONS, 1):
-        mcq(doc, i, stem, options, answer, is_answer_key=is_answer_key)
+    for i, (stem, options, answer, explanation) in enumerate(MCQ_QUESTIONS, 1):
+        mcq(doc, i, stem, options, answer, explanation=explanation, is_answer_key=is_answer_key)
         doc.add_paragraph()
 
     doc.add_page_break()
